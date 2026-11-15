@@ -8,6 +8,7 @@ export interface Rgb {
 
 export type DeviceType =
   | "motherboard"
+  | "gpu"
   | "dram"
   | "keyboard"
   | "mouse"
@@ -17,7 +18,7 @@ export type DeviceType =
   | "light"
   | "unknown";
 
-export type Transport = "usb" | "smbus" | "ble" | "virtual";
+export type Transport = "usb" | "smbus" | "i2c" | "ble" | "virtual";
 
 export interface ZoneInfo {
   index: number;
@@ -30,6 +31,13 @@ export interface EffectInfo {
   name: string;
   uses_color: boolean;
   uses_speed: boolean;
+}
+
+export interface BatteryInfo {
+  percent: number;
+  charging: boolean;
+  /** Estimated from voltage rather than reported by the device. */
+  approximate: boolean;
 }
 
 export type DeviceStatus = { state: "ready" } | { state: "error"; message: string };
@@ -49,6 +57,8 @@ export interface Device {
   color: Rgb | null;
   effect: number | null;
   speed: number;
+  battery: BatteryInfo | null;
+  wireless: boolean;
 }
 
 export interface ScanSummary {
@@ -78,8 +88,13 @@ export interface SystemInfo {
   cpu: string | null;
 }
 
+export type Lang = "sk" | "en";
+
 export interface Settings {
   virtual_devices: boolean;
+  language: Lang;
+  /** Windows/macOS use the app-styled tray menu window. */
+  custom_tray_menu: boolean;
 }
 
 export interface DeviceFailure {

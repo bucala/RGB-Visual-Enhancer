@@ -38,10 +38,16 @@ pub const ERROR_FEATURE_INDEX: u8 = 0xFF;
 pub const HIDPP10_ERROR: u8 = 0x8F;
 
 pub const FEATURE_ROOT: u16 = 0x0000;
+pub const FEATURE_FEATURE_SET: u16 = 0x0001;
 pub const FEATURE_DEVICE_NAME: u16 = 0x0005;
 pub const FEATURE_COLOR_LED_EFFECTS: u16 = 0x8070;
 pub const FEATURE_RGB_EFFECTS: u16 = 0x8071;
 pub const FEATURE_ONBOARD_PROFILES: u16 = 0x8100;
+pub const FEATURE_BATTERY_STATUS: u16 = 0x1000;
+pub const FEATURE_BATTERY_VOLTAGE: u16 = 0x1001;
+pub const FEATURE_UNIFIED_BATTERY: u16 = 0x1004;
+/// Used by wireless headsets (G733, G935…) to report battery voltage.
+pub const FEATURE_ADC_MEASUREMENT: u16 = 0x1F20;
 
 /// Logitech effect type ids (from getZoneEffectInfo).
 pub mod effect {
@@ -305,9 +311,153 @@ pub fn device_kind(kind: u8) -> crate::types::DeviceType {
     }
 }
 
+/// The battery features a device may expose, in order of preference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BatteryFeature {
+    Unified,
+    Status,
+    Voltage,
+    Adc,
+}
+
+impl BatteryFeature {
+    pub const PREFERENCE: [(u16, BatteryFeature); 4] = [
+        (FEATURE_UNIFIED_BATTERY, BatteryFeature::Unified),
+        (FEATURE_BATTERY_STATUS, BatteryFeature::Status),
+        (FEATURE_BATTERY_VOLTAGE, BatteryFeature::Voltage),
+        (FEATURE_ADC_MEASUREMENT, BatteryFeature::Adc),
+    ];
+
+    pub fn request(self, dev: u8, feat: u8) -> Request {
+        match self {
+            // getStatus
+            BatteryFeature::Unified => Request::new(dev, feat, 1, &[]),
+            // getBatteryLevelStatus / getBatteryVoltage / getAdcMeasurement
+            _ => Request::new(dev, feat, 0, &[]),
+        }
+    }
+
+    pub fn parse(self, r: &[u8; PARAMS_LONG]) -> Option<crate::types::BatteryInfo> {
+        use crate::types::BatteryInfo;
+        match self {
+            // [state of charge %, level flags, charging status, external power]
+            BatteryFeature::Unified => {
+                let percent = match (r[0], r[1]) {
+                    (0, flags) if flags & 0x08 != 0 => Some((100, true)),
+                    (0, flags) if flags & 0x04 != 0 => Some((60, true)),
+                    (0, flags) if flags & 0x02 != 0 => Some((20, true)),
+                    (0, flags) if flags & 0x01 != 0 => Some((5, true)),
+                    (0, _) => None,
+                    (p, _) => Some((p.min(100), false)),
+                };
+                let (percent, approximate) = percent?;
+                Some(BatteryInfo {
+                    percent,
+                    charging: matches!(r[2], 1 | 2),
+                    approximate,
+                })
+            }
+            // [level %, next level %, status]
+            BatteryFeature::Status => {
+                if r[2] >= 5 {
+                    return None; // invalid battery / thermal error
+                }
+                Some(BatteryInfo {
+                    percent: r[0].min(100),
+                    charging: matches!(r[2], 1 | 2 | 4),
+                    approximate: false,
+                })
+            }
+            // [millivolts (BE u16), flags]; bit 7 = charging
+            BatteryFeature::Voltage => {
+                let mv = u16::from_be_bytes([r[0], r[1]]);
+                (mv > 0).then(|| BatteryInfo {
+                    percent: voltage_to_percent(mv),
+                    charging: r[2] & 0x80 != 0,
+                    approximate: true,
+                })
+            }
+            // [millivolts (BE u16), flags]; bit 0 = valid/connected, bit 1 = charging
+            BatteryFeature::Adc => {
+                if r[2] & 0x01 == 0 {
+                    return None; // headset switched off
+                }
+                Some(BatteryInfo {
+                    percent: voltage_to_percent(u16::from_be_bytes([r[0], r[1]])),
+                    charging: r[2] & 0x02 != 0,
+                    approximate: true,
+                })
+            }
+        }
+    }
+}
+
+/// Li-ion discharge curve (millivolts -> percent), interpolated linearly.
+/// Same reference points Solaar uses for Logitech devices.
+pub fn voltage_to_percent(mv: u16) -> u8 {
+    const CURVE: [(u16, u8); 13] = [
+        (4186, 100),
+        (4067, 90),
+        (3989, 80),
+        (3922, 70),
+        (3859, 60),
+        (3811, 50),
+        (3778, 40),
+        (3751, 30),
+        (3717, 20),
+        (3671, 10),
+        (3646, 5),
+        (3579, 2),
+        (3500, 0),
+    ];
+    if mv >= CURVE[0].0 {
+        return 100;
+    }
+    for pair in CURVE.windows(2) {
+        let ((hi_mv, hi_p), (lo_mv, lo_p)) = (pair[0], pair[1]);
+        if mv >= lo_mv {
+            let span = u32::from(hi_mv - lo_mv);
+            let above = u32::from(mv - lo_mv);
+            return lo_p + ((u32::from(hi_p - lo_p) * above + span / 2) / span) as u8;
+        }
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn battery_parsing() {
+        let mut r = [0u8; PARAMS_LONG];
+        r[..4].copy_from_slice(&[64, 0x04, 1, 1]);
+        let b = BatteryFeature::Unified.parse(&r).unwrap();
+        assert_eq!((b.percent, b.charging, b.approximate), (64, true, false));
+
+        // Level-only devices report flags instead of a percentage.
+        r[..4].copy_from_slice(&[0, 0x02, 0, 0]);
+        assert_eq!(BatteryFeature::Unified.parse(&r).unwrap().percent, 20);
+
+        r[..3].copy_from_slice(&[0x0F, 0x58, 0x01]); // 3928 mV, valid, not charging
+        let b = BatteryFeature::Adc.parse(&r).unwrap();
+        assert!(b.approximate && !b.charging);
+        assert_eq!(b.percent, 71);
+        r[2] = 0x00; // headset off
+        assert!(BatteryFeature::Adc.parse(&r).is_none());
+
+        r[..3].copy_from_slice(&[50, 40, 6]); // thermal error
+        assert!(BatteryFeature::Status.parse(&r).is_none());
+    }
+
+    #[test]
+    fn voltage_curve() {
+        assert_eq!(voltage_to_percent(4300), 100);
+        assert_eq!(voltage_to_percent(4186), 100);
+        assert_eq!(voltage_to_percent(3811), 50);
+        assert_eq!(voltage_to_percent(3835), 55);
+        assert_eq!(voltage_to_percent(3400), 0);
+    }
 
     #[test]
     fn encodes_get_feature() {

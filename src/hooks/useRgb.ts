@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { errorMessage, getBackend, type Backend } from "../lib/backend";
 import { createLatestSender } from "../lib/latestSender";
-import type { Device, ManagerEvent, Rgb, ScanSummary, Settings, SystemInfo } from "../lib/types";
+import type { Key } from "../i18n";
+import type { Device, Lang, ManagerEvent, Rgb, ScanSummary, Settings, SystemInfo } from "../lib/types";
+
+/** A log message: raw text from the backend, or a translatable key. */
+export type LogMessage = string | { key: Key; vars?: Record<string, string | number> };
 
 export interface LogEntry {
   id: number;
   time: number;
   level: "info" | "warn" | "error";
   source: string;
-  message: string;
+  message: LogMessage;
 }
 
 interface State {
@@ -20,6 +24,7 @@ interface State {
   system: SystemInfo | null;
   settings: Settings;
   syncAll: boolean;
+  autostart: boolean;
   log: LogEntry[];
 }
 
@@ -30,13 +35,15 @@ type Action =
   | { type: "replace"; devices: Device[] }
   | { type: "select"; id: string | null }
   | { type: "sync"; on: boolean }
-  | { type: "settings"; settings: Settings }
-  | { type: "log"; level: LogEntry["level"]; source: string; message: string };
+  | { type: "settings"; settings: Partial<Settings> }
+  | { type: "autostart"; on: boolean }
+  | { type: "clearLog" }
+  | { type: "log"; level: LogEntry["level"]; source: string; message: LogMessage };
 
 const MAX_LOG = 200;
 let logSeq = 0;
 
-function pushLog(state: State, level: LogEntry["level"], source: string, message: string): LogEntry[] {
+function pushLog(state: State, level: LogEntry["level"], source: string, message: LogMessage): LogEntry[] {
   const entry = { id: ++logSeq, time: Date.now(), level, source, message };
   return [entry, ...state.log].slice(0, MAX_LOG);
 }
@@ -74,7 +81,11 @@ function reducer(state: State, action: Action): State {
     case "sync":
       return { ...state, syncAll: action.on };
     case "settings":
-      return { ...state, settings: action.settings };
+      return { ...state, settings: { ...state.settings, ...action.settings } };
+    case "autostart":
+      return { ...state, autostart: action.on };
+    case "clearLog":
+      return { ...state, log: [] };
     case "log":
       return { ...state, log: pushLog(state, action.level, action.source, action.message) };
     case "event":
@@ -85,10 +96,13 @@ function reducer(state: State, action: Action): State {
 function applyEvent(state: State, e: ManagerEvent): State {
   switch (e.type) {
     case "scan_started":
-      return { ...state, scanning: true, log: pushLog(state, "info", "Scan", "Scanning for devices…") };
+      return { ...state, scanning: true, log: pushLog(state, "info", "Scan", { key: "log.scanning" }) };
     case "scan_finished": {
       const { type: _type, ...summary } = e;
-      const msg = `Found ${summary.added} new device(s), ${summary.total} total in ${(summary.duration_ms / 1000).toFixed(1)} s`;
+      const msg: LogMessage = {
+        key: "log.scanDone",
+        vars: { added: summary.added, total: summary.total, secs: (summary.duration_ms / 1000).toFixed(1) },
+      };
       return { ...state, scanning: false, lastScan: summary, log: pushLog(state, "info", "Scan", msg) };
     }
     case "device_added": {
@@ -97,7 +111,7 @@ function applyEvent(state: State, e: ManagerEvent): State {
         ...state,
         devices,
         selectedId: state.selectedId ?? e.device.id,
-        log: pushLog(state, "info", e.device.vendor, `Connected ${e.device.name}`),
+        log: pushLog(state, "info", e.device.vendor, { key: "log.connected", vars: { name: e.device.name } }),
       };
     }
     case "device_updated":
@@ -124,8 +138,9 @@ const initialState: State = {
   scanning: false,
   lastScan: null,
   system: null,
-  settings: { virtual_devices: false },
+  settings: { virtual_devices: false, language: "sk", custom_tray_menu: false },
   syncAll: false,
+  autostart: false,
   log: [],
 };
 
@@ -150,6 +165,8 @@ export function useRgb() {
       unsubs.push(
         await backend.onResync(async () => dispatch({ type: "replace", devices: await backend.listDevices() })),
       );
+      unsubs.push(await backend.onSettings((s) => dispatch({ type: "settings", settings: s })));
+      backend.getAutostart().then((on) => !disposed && dispatch({ type: "autostart", on }), () => {});
       const [devices, settings, scanning] = await Promise.all([
         backend.listDevices(),
         backend.getSettings(),
@@ -203,6 +220,17 @@ export function useRgb() {
       setZoneColor: (deviceId: string, zone: number, color: Rgb) =>
         backendRef.current?.setZoneColor(deviceId, zone, color).catch(() => {}),
       setEffect: (deviceId: string, effect: number, speed: number) => senders.effect(deviceId, { effect, speed }),
+      clearLog: () => dispatch({ type: "clearLog" }),
+      setLanguage: async (language: Lang) => {
+        dispatch({ type: "settings", settings: { language } });
+        await backendRef.current?.setLanguage(language).catch((e) => logError("Settings", e));
+      },
+      setAutostart: async (on: boolean) => {
+        const be = backendRef.current;
+        if (!be) return;
+        await be.setAutostart(on).catch((e) => logError("Settings", e));
+        dispatch({ type: "autostart", on: await be.getAutostart().catch(() => on) });
+      },
       setVirtualDevices: async (enabled: boolean) => {
         const be = backendRef.current;
         if (!be) return;

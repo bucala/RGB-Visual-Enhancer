@@ -47,7 +47,13 @@ function device(
     color: null,
     effect: null,
     speed: 50,
+    battery: null,
+    wireless: transport === "ble",
   };
+}
+
+function withBattery(d: Device, percent: number, charging: boolean): Device {
+  return { ...d, battery: { percent, charging, approximate: false }, wireless: true };
 }
 
 const { Off, Static, Breathing, SpectrumCycle, RainbowWave, ColorPulse, Flashing } = EffectIds;
@@ -61,11 +67,13 @@ function demoDevices(): Device[] {
       [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle, ColorPulse]),
     device("g-mouse", "Virtual Logitech G Mouse", "Logitech", "mouse",
       [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle]),
+    withBattery(device("g-headset", "Virtual Logitech G Headset", "Logitech", "headset",
+      [["Logo", 1], ["Strip", 1]], [Off, Static, Breathing, SpectrumCycle]), 64, false),
     device("g-speakers", "Virtual Logitech G Speakers", "Logitech", "speaker",
       [["Left", 1], ["Right", 1], ["Left Rear", 1], ["Right Rear", 1]],
       [Off, Static, Breathing, SpectrumCycle]),
-    device("ble-strip", "Virtual BLE LED Strip", "ESP32", "led_strip",
-      [["Strip", 120]], [Off, Static, Breathing, SpectrumCycle, RainbowWave, Flashing]),
+    withBattery(device("ble-strip", "Virtual BLE LED Strip", "ESP32", "led_strip",
+      [["Strip", 120]], [Off, Static, Breathing, SpectrumCycle, RainbowWave, Flashing], "ble"), 87, true),
   ];
 }
 
@@ -77,6 +85,9 @@ export function createDemoBackend(): Backend {
   const listeners = new Set<(e: ManagerEvent) => void>();
   let enabled = true;
   let scanning = false;
+  let language: "sk" | "en" = "sk";
+  let autostart = false;
+  const settingsListeners = new Set<(s: { language: "sk" | "en" }) => void>();
   const emit = (e: ManagerEvent) => listeners.forEach((l) => l(structuredClone(e)));
 
   const update = (id: string, fn: (d: Device) => void) => {
@@ -111,7 +122,11 @@ export function createDemoBackend(): Backend {
           }
         }
       }
-      const warnings = ["Hardware access is unavailable in the browser demo; run `npm run tauri dev`."];
+      const warnings = [
+        language === "sk"
+          ? "V prehliadači nie je prístup k hardvéru; spustite `npm run tauri dev`."
+          : "Hardware access is unavailable in the browser demo; run `npm run tauri dev`.",
+      ];
       emit({ type: "warning", source: "Demo", message: warnings[0]! });
       const summary = {
         added,
@@ -169,7 +184,28 @@ export function createDemoBackend(): Backend {
       };
     },
     async getSettings() {
-      return { virtual_devices: enabled };
+      return { virtual_devices: enabled, language, custom_tray_menu: false };
+    },
+    async setLanguage(lang) {
+      language = lang;
+      settingsListeners.forEach((l) => l({ language }));
+    },
+    async getAutostart() {
+      return autostart;
+    },
+    async setAutostart(on) {
+      autostart = on;
+    },
+    async showMainWindow() {},
+    async hideTrayMenu() {},
+    async resizeTrayMenu() {},
+    async quit() {},
+    async onSettings(cb) {
+      settingsListeners.add(cb);
+      return () => settingsListeners.delete(cb);
+    },
+    async onTrayOpened() {
+      return () => {};
     },
     async setVirtualDevices(on) {
       enabled = on;

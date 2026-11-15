@@ -30,6 +30,7 @@ impl fmt::Display for Rgb {
 #[serde(rename_all = "snake_case")]
 pub enum DeviceType {
     Motherboard,
+    Gpu,
     Dram,
     Keyboard,
     Mouse,
@@ -45,6 +46,7 @@ pub enum DeviceType {
 pub enum Transport {
     Usb,
     Smbus,
+    I2c,
     Ble,
     Virtual,
 }
@@ -141,6 +143,16 @@ pub struct EffectInfo {
     pub name: String,
     pub uses_color: bool,
     pub uses_speed: bool,
+}
+
+/// Battery state of a wireless device.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatteryInfo {
+    /// 0–100.
+    pub percent: u8,
+    pub charging: bool,
+    /// Estimated from voltage rather than reported by the device.
+    pub approximate: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

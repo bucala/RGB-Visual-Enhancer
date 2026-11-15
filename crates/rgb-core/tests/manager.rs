@@ -18,6 +18,7 @@ fn fast_config() -> ManagerConfig {
         op_timeout: Duration::from_millis(200),
         detect_timeout: Duration::from_millis(500),
         queue_depth: 64,
+        battery_interval: Duration::from_millis(50),
     }
 }
 
@@ -334,4 +335,19 @@ async fn events_serialize_as_tagged_json() {
         .unwrap()
         .starts_with("virtual:"));
     assert_eq!(json["device"]["status"]["state"], "ready");
+}
+
+#[tokio::test]
+async fn battery_is_polled_and_marks_device_wireless() {
+    let manager = virtual_manager();
+    manager.scan().await.unwrap();
+    // The first poll happens as soon as the worker starts.
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    let headset = manager.device("virtual:g-headset").await.unwrap();
+    assert_eq!(headset.battery.map(|b| b.percent), Some(64));
+    assert!(headset.wireless);
+    let strip = manager.device("virtual:ble-strip").await.unwrap();
+    assert!(strip.wireless && strip.battery.unwrap().charging);
+    let mouse = manager.device("virtual:g-mouse").await.unwrap();
+    assert!(mouse.battery.is_none() && !mouse.wireless);
 }

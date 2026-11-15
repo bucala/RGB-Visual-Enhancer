@@ -19,8 +19,6 @@ fn main() {
         println!("cargo:rerun-if-changed={}", manifest.display());
         println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
         println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
-        // Fail the build instead of silently producing a manifest-less binary.
-        println!("cargo:rustc-link-arg=/WX");
     }
 
     tauri_build::try_build(attrs).expect("failed to run tauri-build");

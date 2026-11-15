@@ -1,5 +1,7 @@
 import { Layers, Palette, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
+import { batteryLabel, connectionLabel, effectKey } from "../lib/deviceText";
 import type { Device, Rgb } from "../lib/types";
 import { ColorPicker } from "./ColorPicker";
 import { DeviceIcon } from "./DeviceIcon";
@@ -7,17 +9,18 @@ import { EffectPanel } from "./EffectPanel";
 import { Card, Chip } from "./ui";
 import { ZoneList } from "./ZoneList";
 
-const TRANSPORT_LABEL = { usb: "USB HID", smbus: "SMBus", ble: "Bluetooth LE", virtual: "Simulated" };
 const DEFAULT_COLOR: Rgb = { r: 124, g: 92, b: 255 };
 
-export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, onEffect }: {
+export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, onZoneColor, onEffect }: {
   device: Device;
   syncAll: boolean;
   syncCount: number;
   onColor: (c: Rgb) => void;
+  onApplyAll: (c: Rgb) => void;
   onZoneColor: (zone: number, c: Rgb) => void;
   onEffect: (effect: number, speed: number) => void;
 }) {
+  const { t } = useI18n();
   // The picker owns the "draft" colour; hardware state follows asynchronously.
   const [color, setColor] = useState<Rgb>(device.color ?? DEFAULT_COLOR);
   // Reset only when switching devices, not on every hardware echo.
@@ -26,6 +29,8 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, 
   const activeEffect = device.effects.find((e) => e.id === device.effect);
   const colorRelevant = !activeEffect || activeEffect.uses_color;
   const canColor = device.effects.some((e) => e.uses_color);
+  const battery = batteryLabel(device, t);
+  const b = device.battery;
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,12 +42,21 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, 
           <h2 className="truncate text-lg font-semibold">{device.name}</h2>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Chip>{device.vendor}</Chip>
-            <Chip>{TRANSPORT_LABEL[device.transport]}</Chip>
-            {device.firmware && <Chip>fw {device.firmware}</Chip>}
+            <Chip>{connectionLabel(device, t)}</Chip>
+            {b && battery && (
+              <Chip tone={b.percent <= 15 && !b.charging ? "error" : b.percent <= 30 ? "warn" : "ok"}>
+                {t("battery")} {battery}
+              </Chip>
+            )}
+            {device.firmware && (
+              <Chip>
+                {t("panel.firmware")} {device.firmware}
+              </Chip>
+            )}
             {device.status.state === "error" ? (
-              <Chip tone="error">Error</Chip>
+              <Chip tone="error">{t("status.error")}</Chip>
             ) : (
-              <Chip tone="ok">Ready</Chip>
+              <Chip tone="ok">{t("status.ready")}</Chip>
             )}
           </div>
           <p className="mt-2 truncate font-mono text-[11px] text-muted" title={device.location}>
@@ -59,9 +73,9 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, 
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card
-          title="Colour"
+          title={t("panel.colour")}
           icon={<Palette size={15} />}
-          actions={syncAll ? <Chip tone="warn">Syncing {syncCount} devices</Chip> : undefined}
+          actions={syncAll ? <Chip tone="warn">{t("panel.syncing", { n: syncCount })}</Chip> : undefined}
         >
           {canColor ? (
             <ColorPicker
@@ -70,24 +84,23 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, 
                 setColor(c);
                 onColor(c);
               }}
+              onApplyAll={onApplyAll}
             />
           ) : (
-            <p className="text-xs text-muted">This device has no colour-based effects.</p>
+            <p className="text-xs text-muted">{t("panel.noColour")}</p>
           )}
-          {canColor && !colorRelevant && (
-            <p className="mt-3 text-[11px] text-muted">
-              {activeEffect?.name} ignores colour; picking one switches to Static.
-            </p>
+          {canColor && !colorRelevant && activeEffect && (
+            <p className="mt-3 text-[11px] text-muted">{t("panel.ignoresColour", { effect: t(effectKey(activeEffect.id)) })}</p>
           )}
         </Card>
 
-        <Card title="Effects" icon={<Sparkles size={15} />}>
+        <Card title={t("panel.effects")} icon={<Sparkles size={15} />}>
           <EffectPanel device={device} onEffect={onEffect} />
         </Card>
       </div>
 
-      <Card title={`Zones (${device.zones.length})`} icon={<Layers size={15} />}>
-        <ZoneList device={device} color={color} onApply={(z) => onZoneColor(z, color)} />
+      <Card title={t("panel.zones", { n: device.zones.length })} icon={<Layers size={15} />}>
+        <ZoneList device={device} color={color} onApply={onZoneColor} />
       </Card>
     </div>
   );

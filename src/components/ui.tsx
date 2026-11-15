@@ -19,7 +19,13 @@ export function Card({ title, icon, actions, children, className = "" }: {
   );
 }
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({ checked, onChange, label, hideLabel }: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  /** Accessible name; also shown next to the switch unless `hideLabel`. */
+  label: string;
+  hideLabel?: boolean;
+}) {
   return (
     <label className="flex cursor-pointer items-center gap-2 text-xs text-muted hover:text-text">
       <button
@@ -34,7 +40,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
           className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${checked ? "translate-x-4" : ""}`}
         />
       </button>
-      {label}
+      {!hideLabel && label}
     </label>
   );
 }
