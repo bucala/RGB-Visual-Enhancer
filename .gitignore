@@ -17,3 +17,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# Built installers (attach to GitHub releases instead)
+/release/

@@ -36,11 +36,38 @@ start with `RGBVE_VIRTUAL_DEVICES=1 npm run tauri dev`.
 To work on the UI alone, run `npm run dev` and open http://localhost:1420. In a
 plain browser the app uses an in-memory simulator instead of the Rust backend.
 
-Release build (installers land in `target/release/bundle/`):
+Release build for the current OS (installers land in `target/release/bundle/`):
 
 ```bash
 npm run tauri build
 ```
+
+### Installers for x86 / x64
+
+**GitHub Actions (recommended):** push a `v*` tag or run the *Release*
+workflow manually. It builds Windows x64, Windows x86 (32-bit), and Linux
+x86_64 installers with the native toolchains and attaches them to a draft
+release.
+
+**Cross-compiling Windows installers from Linux:** use MinGW-w64 and NSIS
+(`apt install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 nsis`). Tauri treats
+cross-compilation as experimental, and the installers are unsigned.
+
+```bash
+rustup target add x86_64-pc-windows-gnu i686-pc-windows-gnu
+```
+
+```bash
+npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
+```
+
+```bash
+npm run tauri build -- --target i686-pc-windows-gnu --bundles nsis
+```
+
+Unsigned installers trigger a Windows SmartScreen warning ("More info → Run
+anyway"). The installer downloads the WebView2 runtime if it's missing; it
+ships with Windows 10 and 11.
 
 ## Hardware access
 
