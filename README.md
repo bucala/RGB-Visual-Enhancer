@@ -44,14 +44,40 @@ npm run tauri build
 
 ### Installers for x86 / x64
 
-**GitHub Actions (recommended):** push a `v*` tag or run the *Release*
-workflow manually. It builds Windows x64, Windows x86 (32-bit), and Linux
-x86_64 installers with the native toolchains and attaches them to a draft
-release.
+**On Windows (native):** install
+[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+with the *Desktop development with C++* workload, plus Rust and Node 22+.
+Then:
 
-**Cross-compiling Windows installers from Linux:** use MinGW-w64 and NSIS
-(`apt install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 nsis`). Tauri treats
-cross-compilation as experimental, and the installers are unsigned.
+```powershell
+npm install
+```
+
+```powershell
+npm run tauri build
+```
+
+The 64-bit installers are written to `target\release\bundle\nsis\` (`.exe`)
+and `target\release\bundle\msi\` (`.msi`). For a 32-bit (x86) build:
+
+```powershell
+rustup target add i686-pc-windows-msvc
+```
+
+```powershell
+npm run tauri build -- --target i686-pc-windows-msvc
+```
+
+The output goes to `target\i686-pc-windows-msvc\release\bundle\`.
+
+**GitHub Actions:** push a `v*` tag or run the *Release* workflow manually. It
+builds Windows x64, Windows x86 (32-bit), and Linux x86_64 installers and
+attaches them to a draft release.
+
+**Cross-compiling Windows installers from a Linux host:** use MinGW-w64 and
+NSIS (`apt install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 nsis`). Don't use
+these `-gnu` targets on Windows itself. Tauri treats cross-compilation as
+experimental.
 
 ```bash
 rustup target add x86_64-pc-windows-gnu i686-pc-windows-gnu
