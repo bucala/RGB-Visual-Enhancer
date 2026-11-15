@@ -8,6 +8,7 @@ export interface Rgb {
 
 export type DeviceType =
   | "motherboard"
+  | "gpu"
   | "dram"
   | "keyboard"
   | "mouse"
@@ -17,7 +18,7 @@ export type DeviceType =
   | "light"
   | "unknown";
 
-export type Transport = "usb" | "smbus" | "ble" | "virtual";
+export type Transport = "usb" | "smbus" | "i2c" | "ble" | "virtual";
 
 export interface ZoneInfo {
   index: number;

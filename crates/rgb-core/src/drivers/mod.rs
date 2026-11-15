@@ -9,4 +9,6 @@ pub mod ble;
 #[cfg(feature = "hid")]
 pub mod hid;
 pub mod logitech;
+#[cfg(feature = "gpu")]
+pub mod msi_gpu;
 pub mod virtual_device;

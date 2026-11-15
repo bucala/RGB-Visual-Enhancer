@@ -1,8 +1,9 @@
-import { CircleHelp, Cpu, Headphones, Keyboard, Lightbulb, MemoryStick, Mouse, Rainbow, Speaker } from "lucide-react";
+import { CircleHelp, Cpu, Gpu, Headphones, Keyboard, Lightbulb, MemoryStick, Mouse, Rainbow, Speaker } from "lucide-react";
 import type { DeviceType } from "../lib/types";
 
 const ICONS = {
   motherboard: Cpu,
+  gpu: Gpu,
   dram: MemoryStick,
   keyboard: Keyboard,
   mouse: Mouse,
@@ -15,6 +16,7 @@ const ICONS = {
 
 export const TYPE_LABELS: Record<DeviceType, string> = {
   motherboard: "Motherboards",
+  gpu: "Graphics Cards",
   dram: "Memory",
   keyboard: "Keyboards",
   mouse: "Mice",

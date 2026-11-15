@@ -7,7 +7,7 @@ import { EffectPanel } from "./EffectPanel";
 import { Card, Chip } from "./ui";
 import { ZoneList } from "./ZoneList";
 
-const TRANSPORT_LABEL = { usb: "USB HID", smbus: "SMBus", ble: "Bluetooth LE", virtual: "Simulated" };
+const TRANSPORT_LABEL = { usb: "USB HID", smbus: "SMBus", i2c: "GPU I²C", ble: "Bluetooth LE", virtual: "Simulated" };
 const DEFAULT_COLOR: Rgb = { r: 124, g: 92, b: 255 };
 
 export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, onEffect }: {

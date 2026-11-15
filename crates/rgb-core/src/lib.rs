@@ -43,6 +43,8 @@ pub fn default_detectors(virtual_enabled: Arc<AtomicBool>) -> Vec<Arc<dyn Device
     }
     #[cfg(feature = "smbus")]
     detectors.push(Arc::new(drivers::asus_aura::AuraSmbusDetector));
+    #[cfg(feature = "gpu")]
+    detectors.push(Arc::new(drivers::msi_gpu::MsiGpuDetector));
     #[cfg(feature = "ble")]
     detectors.push(Arc::new(drivers::ble::BleDetector::default()));
     detectors

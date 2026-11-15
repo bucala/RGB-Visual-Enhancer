@@ -30,6 +30,7 @@ impl fmt::Display for Rgb {
 #[serde(rename_all = "snake_case")]
 pub enum DeviceType {
     Motherboard,
+    Gpu,
     Dram,
     Keyboard,
     Mouse,
@@ -45,6 +46,7 @@ pub enum DeviceType {
 pub enum Transport {
     Usb,
     Smbus,
+    I2c,
     Ble,
     Virtual,
 }

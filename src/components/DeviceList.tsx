@@ -3,11 +3,12 @@ import { rgbCss } from "../lib/color";
 import type { Device, DeviceType, Transport } from "../lib/types";
 import { DeviceIcon, TYPE_LABELS } from "./DeviceIcon";
 
-const ORDER: DeviceType[] = ["motherboard", "dram", "keyboard", "mouse", "headset", "speaker", "led_strip", "light", "unknown"];
+const ORDER: DeviceType[] = ["motherboard", "gpu", "dram", "keyboard", "mouse", "headset", "speaker", "led_strip", "light", "unknown"];
 
 const TRANSPORT_ICON: Record<Transport, typeof Cable> = {
   usb: Cable,
   smbus: CircuitBoard,
+  i2c: CircuitBoard,
   ble: Bluetooth,
   virtual: FlaskConical,
 };

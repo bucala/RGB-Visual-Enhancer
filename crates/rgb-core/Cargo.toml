@@ -7,13 +7,15 @@ license.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["hid", "smbus", "ble"]
+default = ["hid", "smbus", "ble", "gpu"]
 # Logitech HID++ 2.0 peripherals over USB HID.
 hid = ["dep:hidapi"]
 # ASUS Aura (ENE) controllers on the motherboard SMBus.
 smbus = []
 # Bluetooth Low Energy LED strips / lamps.
 ble = ["dep:btleplug", "dep:uuid"]
+# MSI GeForce graphics cards (I2C over NVIDIA NvAPI on Windows).
+gpu = []
 
 [dependencies]
 async-trait.workspace = true
@@ -31,6 +33,7 @@ hidapi = { version = "2.6", default-features = false, features = ["linux-static-
 [target.'cfg(windows)'.dependencies]
 hidapi = { version = "2.6", default-features = false, features = ["windows-native"], optional = true }
 winreg = "0.55"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }
 
 [target.'cfg(not(any(target_os = "linux", windows)))'.dependencies]
 hidapi = { version = "2.6", optional = true }

@@ -9,6 +9,7 @@ or G HUB. Built with **Rust + Tokio**, **Tauri v2**, and **React + Tailwind**.
 | ASUS Aura motherboards, USB controller (AMD 500-series, Intel 400-series and newer, e.g. ROG STRIX B550-F) | USB HID (`0B05:18F3/1939/19AF/1AA6/1BED`) | Windows and Linux, no extra drivers. Onboard LEDs, 12 V RGB and 5 V ARGB headers. |
 | ASUS Aura motherboards, ENE controller (older boards) | SMBus / I²C | Linux via `i2c-dev`. Windows requires a Ring0 driver (not bundled yet, see below). |
 | Logitech G keyboards, mice, speakers, headsets | USB HID (HID++ 2.0, features `0x8070` / `0x8071`, usage pages `0xFF00` / `0xFF43`) | Wired devices and LIGHTSPEED/Unifying receivers. Confirmed on a G502 (`C332`). |
+| MSI GeForce graphics cards (RTX 4060 GAMING X) | GPU I²C @ `0x68` via NVIDIA NvAPI | Windows only. Restricted to exact PCI ids; never writes the save/flash register. |
 | BLE LED strips and lamps | Bluetooth LE GATT (`btleplug`) | RGBVE (DIY ESP32, [firmware included](firmware/esp32-ble-rgb)), ELK-BLEDOM, Triones. |
 | Virtual devices | — | Simulated hardware for development and demos. |
 
