@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use std::collections::HashSet;
 
-use crate::types::{DeviceInfo, Rgb};
+use crate::types::{BatteryInfo, DeviceInfo, Rgb};
 
 /// Error type used across the driver boundary. Kept as a plain string so it
 /// crosses the Tauri IPC boundary without conversion.
@@ -45,6 +45,12 @@ pub trait RgbController: Send + Sync {
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {
         let _ = zone;
         self.set_color(color.r, color.g, color.b).await
+    }
+
+    /// Current battery state, for wireless devices. Polled periodically by
+    /// the manager; `None` means no battery or the device is unreachable.
+    async fn battery(&mut self) -> Option<BatteryInfo> {
+        None
     }
 
     /// Release the hardware (close handles, disconnect BLE, …).

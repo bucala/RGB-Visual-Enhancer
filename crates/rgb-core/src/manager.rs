@@ -23,7 +23,7 @@ use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 use crate::controller::{DeviceDetector, RgbController, RgbResult};
-use crate::types::{DeviceInfo, EffectId, Rgb};
+use crate::types::{BatteryInfo, DeviceInfo, EffectId, Rgb, Transport};
 
 /// Tunables for the manager. The defaults suit real hardware; tests shrink them.
 #[derive(Clone, Debug)]
@@ -36,6 +36,8 @@ pub struct ManagerConfig {
     pub detect_timeout: Duration,
     /// Commands buffered per device before callers wait.
     pub queue_depth: usize,
+    /// How often wireless devices are asked for their battery level.
+    pub battery_interval: Duration,
 }
 
 impl Default for ManagerConfig {
@@ -45,6 +47,7 @@ impl Default for ManagerConfig {
             op_timeout: Duration::from_secs(5),
             detect_timeout: Duration::from_secs(30),
             queue_depth: 64,
+            battery_interval: Duration::from_secs(60),
         }
     }
 }
@@ -65,6 +68,9 @@ pub struct DeviceSnapshot {
     pub color: Option<Rgb>,
     pub effect: Option<u8>,
     pub speed: u8,
+    pub battery: Option<BatteryInfo>,
+    /// Bluetooth, or a device that has reported a battery (LIGHTSPEED etc.).
+    pub wireless: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -282,11 +288,13 @@ impl DeviceManager {
         }
 
         let snapshot = Arc::new(std::sync::RwLock::new(DeviceSnapshot {
+            wireless: info.transport == Transport::Ble,
             info: info.clone(),
             status: DeviceStatus::Ready,
             color: None,
             effect: None,
             speed: 50,
+            battery: None,
         }));
         let (tx, rx) = mpsc::channel(self.inner.config.queue_depth);
         let task = tokio::spawn(run_worker(
@@ -295,6 +303,7 @@ impl DeviceManager {
             snapshot.clone(),
             self.inner.events.clone(),
             self.inner.config.op_timeout,
+            self.inner.config.battery_interval,
         ));
         let device = snapshot.read().expect("snapshot lock").clone();
         devices.insert(info.id.clone(), DeviceHandle { snapshot, tx, task });
@@ -422,15 +431,27 @@ async fn run_worker(
     snapshot: Arc<std::sync::RwLock<DeviceSnapshot>>,
     events: broadcast::Sender<ManagerEvent>,
     op_timeout: Duration,
+    battery_interval: Duration,
 ) {
     let mut stashed: Option<Command> = None;
+    // First tick fires immediately, giving an initial battery reading.
+    let mut battery_tick = tokio::time::interval(battery_interval);
+    battery_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     loop {
         let cmd = match stashed.take() {
             Some(cmd) => cmd,
-            None => match rx.recv().await {
-                Some(cmd) => cmd,
-                None => break,
+            None => tokio::select! {
+                // Commands first: a battery poll never delays user input.
+                biased;
+                cmd = rx.recv() => match cmd {
+                    Some(cmd) => cmd,
+                    None => break,
+                },
+                _ = battery_tick.tick() => {
+                    poll_battery(controller.as_mut(), &snapshot, &events, op_timeout).await;
+                    continue;
+                }
             },
         };
 
@@ -497,6 +518,29 @@ async fn run_worker(
             }
         }
     }
+}
+
+async fn poll_battery(
+    controller: &mut dyn RgbController,
+    snapshot: &std::sync::RwLock<DeviceSnapshot>,
+    events: &broadcast::Sender<ManagerEvent>,
+    op_timeout: Duration,
+) {
+    let battery = timeout(op_timeout, controller.battery())
+        .await
+        .ok()
+        .flatten();
+    let device = {
+        let mut s = snapshot.write().expect("snapshot lock");
+        if s.battery == battery {
+            return;
+        }
+        s.battery = battery;
+        // Sticky: a headset that is switched off is still a wireless device.
+        s.wireless |= battery.is_some();
+        s.clone()
+    };
+    let _ = events.send(ManagerEvent::DeviceUpdated { device });
 }
 
 async fn bounded<F>(limit: Duration, fut: F) -> RgbResult<()>

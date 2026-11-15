@@ -1,4 +1,5 @@
-import { Bluetooth, Cable, CircuitBoard, FlaskConical } from "lucide-react";
+import { Bluetooth, Cable, CircuitBoard, FlaskConical, Wifi } from "lucide-react";
+import { BatteryBadge } from "./Battery";
 import { rgbCss } from "../lib/color";
 import type { Device, DeviceType, Transport } from "../lib/types";
 import { DeviceIcon, TYPE_LABELS } from "./DeviceIcon";
@@ -35,7 +36,7 @@ export function DeviceList({ devices, selectedId, onSelect, scanning }: {
           </h3>
           <ul className="flex flex-col gap-1">
             {list.map((d) => {
-              const TransportIcon = TRANSPORT_ICON[d.transport];
+              const TransportIcon = d.wireless && d.transport === "usb" ? Wifi : TRANSPORT_ICON[d.transport];
               const active = d.id === selectedId;
               const error = d.status.state === "error";
               return (
@@ -59,6 +60,11 @@ export function DeviceList({ devices, selectedId, onSelect, scanning }: {
                       <span className="flex items-center gap-1 text-[11px] text-muted">
                         <TransportIcon size={11} />
                         {d.vendor}
+                        {d.battery && (
+                          <span className="ml-auto pl-2">
+                            <BatteryBadge battery={d.battery} size={11} />
+                          </span>
+                        )}
                       </span>
                     </span>
                     <span

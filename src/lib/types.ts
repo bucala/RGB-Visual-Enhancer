@@ -33,6 +33,13 @@ export interface EffectInfo {
   uses_speed: boolean;
 }
 
+export interface BatteryInfo {
+  percent: number;
+  charging: boolean;
+  /** Estimated from voltage rather than reported by the device. */
+  approximate: boolean;
+}
+
 export type DeviceStatus = { state: "ready" } | { state: "error"; message: string };
 
 export interface Device {
@@ -50,6 +57,8 @@ export interface Device {
   color: Rgb | null;
   effect: number | null;
   speed: number;
+  battery: BatteryInfo | null;
+  wireless: boolean;
 }
 
 export interface ScanSummary {

@@ -5,13 +5,16 @@
 //! back to the frontend through the [`EVENT_CHANNEL`] event.
 
 mod commands;
+mod tray;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use rgb_core::{default_detectors, DeviceManager, ManagerConfig};
+use std::sync::atomic::Ordering;
 use tauri::ipc::Invoke;
-use tauri::{Emitter, Manager, RunEvent, Runtime};
+
+use tauri::{Emitter, Manager, RunEvent, Runtime, WindowEvent};
 use tokio::sync::broadcast::error::RecvError;
 
 /// Every backend event is emitted on this channel as a tagged JSON object.
@@ -55,9 +58,41 @@ pub fn run() {
     );
 
     let app = tauri::Builder::default()
+        // Must be first: a second launch just brings the running app forward
+        // instead of fighting it for the hardware.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::show_main_window(app);
+        }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![tray::MINIMIZED_ARG]),
+        ))
         .manage(AppState {
             manager: manager.clone(),
             virtual_devices,
+        })
+        .manage(tray::TrayState::default())
+        .on_window_event(|window, event| {
+            // With a tray icon, closing or minimising hides to the tray (like
+            // G HUB). Without one (e.g. no AppIndicator on Linux) the window
+            // behaves normally so it can't get lost.
+            let in_tray = window
+                .state::<tray::TrayState>()
+                .available
+                .load(Ordering::SeqCst);
+            if !in_tray || window.label() != "main" {
+                return;
+            }
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                WindowEvent::Resized(_) if window.is_minimized().unwrap_or(false) => {
+                    let _ = window.hide();
+                }
+                _ => {}
+            }
         })
         .invoke_handler(invoke_handler())
         .setup(move |app| {
@@ -80,6 +115,17 @@ pub fn run() {
                     }
                 }
             });
+
+            match tray::setup(app.handle(), manager.clone()) {
+                Ok(()) => {
+                    if std::env::args().any(|a| a == tray::MINIMIZED_ARG) {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
+                }
+                Err(e) => log::warn!("system tray unavailable, closing will quit: {e}"),
+            }
 
             // Initial hardware scan, off the UI thread.
             let scanner = manager.clone();
@@ -166,11 +212,11 @@ mod ipc_tests {
         let (_app, w) = app();
 
         let summary = call(&w, "scan_devices", json!({})).unwrap();
-        assert_eq!(summary["added"], 5);
+        assert_eq!(summary["added"], 6);
         assert_eq!(call(&w, "is_scanning", json!({})).unwrap(), json!(false));
 
         let devices = call(&w, "list_devices", json!({})).unwrap();
-        assert_eq!(devices.as_array().unwrap().len(), 5);
+        assert_eq!(devices.as_array().unwrap().len(), 6);
         let id = "virtual:g-keyboard";
 
         let red = json!({ "r": 255, "g": 0, "b": 0 });

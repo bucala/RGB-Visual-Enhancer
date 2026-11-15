@@ -1,6 +1,7 @@
 import { Layers, Palette, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Device, Rgb } from "../lib/types";
+import { batteryLabel } from "./Battery";
 import { ColorPicker } from "./ColorPicker";
 import { DeviceIcon } from "./DeviceIcon";
 import { EffectPanel } from "./EffectPanel";
@@ -37,7 +38,12 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onZoneColor, 
           <h2 className="truncate text-lg font-semibold">{device.name}</h2>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Chip>{device.vendor}</Chip>
-            <Chip>{TRANSPORT_LABEL[device.transport]}</Chip>
+            <Chip>{device.wireless && device.transport === "usb" ? "Wireless (USB receiver)" : TRANSPORT_LABEL[device.transport]}</Chip>
+            {device.battery && (
+              <Chip tone={device.battery.percent <= 15 && !device.battery.charging ? "error" : device.battery.percent <= 30 ? "warn" : "ok"}>
+                Battery {batteryLabel(device.battery)}
+              </Chip>
+            )}
             {device.firmware && <Chip>fw {device.firmware}</Chip>}
             {device.status.state === "error" ? (
               <Chip tone="error">Error</Chip>

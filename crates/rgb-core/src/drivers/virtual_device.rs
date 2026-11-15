@@ -10,7 +10,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use crate::controller::{DetectionReport, DeviceDetector, RgbController, RgbResult};
-use crate::types::{DeviceInfo, DeviceType, EffectId, Rgb, Transport, ZoneInfo};
+use crate::types::{BatteryInfo, DeviceInfo, DeviceType, EffectId, Rgb, Transport, ZoneInfo};
 
 pub const VIRTUAL_ID_PREFIX: &str = "virtual:";
 
@@ -21,6 +21,7 @@ pub struct VirtualController {
     pub color: Rgb,
     pub zone_colors: Vec<Rgb>,
     pub effect: Option<(EffectId, u8)>,
+    pub battery: Option<BatteryInfo>,
     /// Number of hardware writes performed (lets tests observe coalescing).
     pub writes: Arc<std::sync::atomic::AtomicUsize>,
 }
@@ -60,8 +61,18 @@ impl VirtualController {
             color: Rgb::BLACK,
             zone_colors: vec![Rgb::BLACK; zones.len()],
             effect: None,
+            battery: None,
             writes: Arc::default(),
         }
+    }
+
+    pub fn with_battery(mut self, percent: u8, charging: bool) -> Self {
+        self.battery = Some(BatteryInfo {
+            percent,
+            charging,
+            approximate: false,
+        });
+        self
     }
 
     pub fn with_latency(mut self, latency: Duration) -> Self {
@@ -107,6 +118,15 @@ impl VirtualController {
                 &[Off, Static, Breathing, SpectrumCycle],
             ),
             VirtualController::new(
+                "g-headset",
+                "Virtual Logitech G Headset",
+                "Logitech",
+                DeviceType::Headset,
+                &[("Logo", 1), ("Strip", 1)],
+                &[Off, Static, Breathing, SpectrumCycle],
+            )
+            .with_battery(64, false),
+            VirtualController::new(
                 "g-speakers",
                 "Virtual Logitech G Speakers",
                 "Logitech",
@@ -127,7 +147,8 @@ impl VirtualController {
                 &[("Strip", 120)],
                 &[Off, Static, Breathing, SpectrumCycle, RainbowWave, Flashing],
             )
-            .with_latency(Duration::from_millis(25)),
+            .with_latency(Duration::from_millis(25))
+            .with_battery(87, true),
         ]
     }
 }
@@ -166,6 +187,10 @@ impl RgbController for VirtualController {
 
     async fn get_device_info(&self) -> DeviceInfo {
         self.info.clone()
+    }
+
+    async fn battery(&mut self) -> Option<BatteryInfo> {
+        self.battery
     }
 
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {

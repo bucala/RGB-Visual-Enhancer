@@ -93,6 +93,7 @@ pub struct LogitechController {
     info: DeviceInfo,
     lighting: Option<Lighting>,
     color: Rgb,
+    battery: Option<(hidpp::BatteryFeature, u8)>,
     /// Active effect type and period, re-applied when the colour changes.
     active: (u16, u16),
 }
@@ -116,6 +117,7 @@ impl LogitechController {
             info,
             lighting: None,
             color: Rgb::WHITE,
+            battery: None,
             active: (effect::STATIC, 0),
         }
     }
@@ -306,6 +308,13 @@ impl RgbController for LogitechController {
 
         let lighting = self.discover_lighting().await?;
 
+        for (id, kind) in hidpp::BatteryFeature::PREFERENCE {
+            if let Ok(Some(index)) = self.feature_index(id).await {
+                self.battery = Some((kind, index));
+                break;
+            }
+        }
+
         // Stop onboard profiles from overriding us. Not every device has
         // the feature, and failure here is not fatal.
         if let Ok(Some(feat)) = self.feature_index(hidpp::FEATURE_ONBOARD_PROFILES).await {
@@ -362,6 +371,16 @@ impl RgbController for LogitechController {
 
     async fn get_device_info(&self) -> DeviceInfo {
         self.info.clone()
+    }
+
+    async fn battery(&mut self) -> Option<crate::types::BatteryInfo> {
+        let (kind, index) = self.battery?;
+        let r = self
+            .channel
+            .request(kind.request(self.device_index, index))
+            .await
+            .ok()?;
+        kind.parse(&r)
     }
 
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {

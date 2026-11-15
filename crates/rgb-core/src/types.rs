@@ -145,6 +145,16 @@ pub struct EffectInfo {
     pub uses_speed: bool,
 }
 
+/// Battery state of a wireless device.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatteryInfo {
+    /// 0–100.
+    pub percent: u8,
+    pub charging: bool,
+    /// Estimated from voltage rather than reported by the device.
+    pub approximate: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneInfo {
     pub index: u8,

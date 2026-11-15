@@ -98,6 +98,23 @@ Unsigned installers trigger a Windows SmartScreen warning ("More info → Run
 anyway"). The installer downloads the WebView2 runtime if it's missing; it
 ships with Windows 10 and 11.
 
+## System tray
+
+Like G HUB, the app keeps running in the system tray:
+
+- Closing or minimising the window hides it to the tray. Left-click the tray
+  icon to bring it back; **Quit** in the tray menu exits.
+- Right-click shows every device with its current colour as a swatch, its
+  status, connection, battery level (wireless Logitech devices via HID++
+  `0x1004`/`0x1000`/`0x1001`/`0x1F20`, refreshed every 60 s), and quick
+  colour presets, per device or for all devices at once.
+- **Start with system (in tray)** launches the app hidden at login
+  (`--minimized`).
+- Starting the app a second time just shows the running instance.
+
+If no tray is available (for example a Linux desktop without AppIndicator
+support), closing the window quits as usual.
+
 ## Hardware access
 
 ### Linux

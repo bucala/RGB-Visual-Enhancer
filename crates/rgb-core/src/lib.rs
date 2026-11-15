@@ -22,7 +22,9 @@ pub use controller::{DetectionReport, DeviceDetector, RgbController, RgbResult};
 pub use manager::{
     DeviceManager, DeviceSnapshot, DeviceStatus, ManagerConfig, ManagerEvent, ScanSummary,
 };
-pub use types::{DeviceInfo, DeviceType, EffectId, EffectInfo, Rgb, Transport, ZoneInfo};
+pub use types::{
+    BatteryInfo, DeviceInfo, DeviceType, EffectId, EffectInfo, Rgb, Transport, ZoneInfo,
+};
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
