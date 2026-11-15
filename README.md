@@ -1,123 +1,132 @@
-# RGB Visual Enhancer
+<p align="center">
+  <img src="docs/images/banner.svg" alt="RGB Visual Enhancer – jednotné ovládanie RGB osvetlenia" width="100%">
+</p>
 
-A lightweight, cross-platform (Windows / Linux) desktop app for controlling RGB
-lighting across vendors from one place, without OEM suites like Armoury Crate
-or G HUB. Built with **Rust + Tokio**, **Tauri v2**, and **React + Tailwind**.
+<p align="center">
+  <img src="docs/images/icon.png" alt="" width="72"><br>
+  <b>Jedna ľahká aplikácia pre všetky RGB svetlá v počítači.</b><br>
+  Žiadny Armoury Crate, žiadny G HUB, žiadne bloatware.
+</p>
 
-| Family | Transport | Status |
+<p align="center">
+  <img alt="Verzia 0.2.0" src="https://img.shields.io/badge/verzia-0.2.0-7c5cff?style=for-the-badge">
+  <img alt="Windows | Linux" src="https://img.shields.io/badge/Windows%20%7C%20Linux-x64%20%C2%B7%20x86-22d3ee?style=for-the-badge&logo=windows11&logoColor=white">
+  <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24c8db?style=for-the-badge&logo=tauri&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-Tokio-f74c00?style=for-the-badge&logo=rust&logoColor=white">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black">
+  <img alt="Licencia MIT" src="https://img.shields.io/badge/licencia-MIT-00ff6a?style=for-the-badge">
+</p>
+
+<p align="center">
+  <b>🇸🇰 Slovensky</b> · <a href="docs/README.en.md">🇬🇧 English</a>
+  <br><br>
+  <a href="#-ukážky">Ukážky</a> ·
+  <a href="#-podporovaný-hardvér">Hardvér</a> ·
+  <a href="#-inštalácia">Inštalácia</a> ·
+  <a href="#-ovládanie">Ovládanie</a> ·
+  <a href="#-ako-to-funguje">Architektúra</a> ·
+  <a href="#-pre-vývojárov">Vývoj</a>
+</p>
+
+---
+
+## ✨ Čo aplikácia vie
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🎨 Farby a efekty</h3>
+      Výber farby, predvoľby, statická farba, dýchanie, blikanie, cyklus spektra aj dúhová vlna. Farbu môžete nastaviť pre celé zariadenie, pre jednu zónu alebo <b>synchronizovať na všetky zariadenia naraz</b>.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🔋 Stav zariadení</h3>
+      Batéria bezdrôtových Logitech zariadení (aj slúchadiel G733), typ spojenia, stav a aktuálne svetlo. Údaje sa obnovujú automaticky.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🧭 Systémová lišta</h3>
+      Ako G HUB: zatvorenie okna nechá aplikáciu bežať v lište. Menu v lište má vizuál aplikácie a ponúka rýchle farby pre každé zariadenie. Voliteľne sa aplikácia spúšťa so systémom.
+    </td>
+    <td valign="top">
+      <h3>⚡ Rýchla a bezpečná</h3>
+      Rust jadro, každé zariadenie má vlastnú úlohu, UI nikdy nečaká na hardvér. Zápisy na zbernice (SMBus, I²C grafickej karty) sú obmedzené na presne overené adresy a registre.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🖱️ Desktopové ovládanie</h3>
+      Kontextové menu pravým tlačidlom tam, kde dáva zmysel (zariadenie, zóna, farba, log). Žiadne prehliadačové menu ani skratky.
+    </td>
+    <td valign="top">
+      <h3>🌍 Slovenčina aj angličtina</h3>
+      Predvolený jazyk je slovenčina, angličtinu zapnete v <b>Nastaveniach</b>. Inštalátory MSI aj EXE sú tiež v oboch jazykoch.
+    </td>
+  </tr>
+</table>
+
+## 📸 Ukážky
+
+<p align="center">
+  <img src="docs/images/app-sk.png" alt="Hlavné okno aplikácie so zoznamom zariadení, výberom farby a efektmi" width="100%">
+</p>
+
+<table>
+  <tr>
+    <th>Menu v systémovej lište</th>
+    <th>Kontextové menu a nastavenia</th>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="40%"><img src="docs/images/tray-menu.png" alt="Menu v lište so zariadeniami, batériou a rýchlymi farbami" width="320"></td>
+    <td align="center" valign="top"><img src="docs/images/context-menu.png" alt="Kontextové menu s farbami a efektmi" width="100%"><br><br><img src="docs/images/settings.png" alt="Nastavenia s voľbou jazyka" width="100%"></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>🇬🇧 Anglické rozhranie</b> (kliknite pre zobrazenie)</summary>
+<br>
+<img src="docs/images/app-en.png" alt="Main window in English" width="100%">
+</details>
+
+<sub>Snímky sú z ukážkového režimu s virtuálnymi zariadeniami.</sub>
+
+## 💻 Podporovaný hardvér
+
+| Zariadenie | Spojenie | Stav |
 |---|---|---|
-| ASUS Aura motherboards, USB controller (AMD 500-series, Intel 400-series and newer, e.g. ROG STRIX B550-F) | USB HID (`0B05:18F3/1939/19AF/1AA6/1BED`) | Windows and Linux, no extra drivers. Onboard LEDs, 12 V RGB and 5 V ARGB headers. |
-| ASUS Aura motherboards, ENE controller (older boards) | SMBus / I²C | Linux via `i2c-dev`. Windows requires a Ring0 driver (not bundled yet, see below). |
-| Logitech G keyboards, mice, speakers, headsets | USB HID (HID++ 2.0, features `0x8070` / `0x8071`, usage pages `0xFF00` / `0xFF43`) | Wired devices and LIGHTSPEED/Unifying receivers. Confirmed on a G502 (`C332`). |
-| MSI GeForce graphics cards (RTX 4060 GAMING X) | GPU I²C @ `0x68` via NVIDIA NvAPI | Windows only. Restricted to exact PCI ids; never writes the save/flash register. |
-| BLE LED strips and lamps | Bluetooth LE GATT (`btleplug`) | RGBVE (DIY ESP32, [firmware included](firmware/esp32-ble-rgb)), ELK-BLEDOM, Triones. |
-| Virtual devices | — | Simulated hardware for development and demos. |
+| **Logitech G** myši, klávesnice, reproduktory, slúchadlá (napr. G502, G910, G733) | USB / LIGHTSPEED (HID++ 2.0) | ✅ G502 overená · 🟢 G910 a G733 rozpoznané |
+| **ASUS Aura** dosky s USB ovládačom (AMD 500, Intel 400 a novšie, napr. ROG STRIX B550-F) | USB HID | 🟢 Rozpoznané na reálnom PC |
+| **MSI GeForce RTX 4060 GAMING X** | I²C cez NVIDIA NvAPI | 🟢 Rozpoznané na reálnom PC (len Windows) |
+| **ASUS Aura** staršie dosky s ENE čipom | SMBus | 🧪 Experimentálne (Linux) |
+| **Bluetooth LED pásiky**: ESP32 ([firmvér v repozitári](firmware/esp32-ble-rgb)), ELK-BLEDOM, Triones | Bluetooth LE | 🧪 Experimentálne |
 
-> **Status:** the architecture, protocols, UI, and test suite are complete.
-> The drivers follow publicly documented protocols (Solaar, OpenRGB). The
-> Logitech HID++ path is confirmed on a G502; the other drivers have not yet
-> been validated on physical devices. Close Logitech G HUB, Armoury Crate, and
-> OpenRGB while using the app, otherwise they keep overriding the lighting.
+> ✅ overené = farby a efekty potvrdené na skutočnom zariadení · 🟢 rozpoznané = aplikácia zariadenie na reálnom PC nájde a ovláda, potvrdenie všetkých efektov uvítame · 🧪 experimentálne = implementované podľa dokumentovaného protokolu, zatiaľ neodskúšané
 
-## Quick start
+<details>
+<summary><b>🔍 Ako aplikácia rozpoznáva zariadenia</b></summary>
 
-Prerequisites: Rust (stable), Node 22+, and the
-[Tauri v2 system dependencies](https://v2.tauri.app/start/prerequisites/).
-Linux also needs `libudev-dev` and `libdbus-1-dev`.
+- **Logitech:** HID kanály `0xFF00` (myši, prijímače) a `0xFF43` (klávesnice G810/G910, slúchadlá). Funkcie zariadenia zisťuje cez HID++ (`0x8070`/`0x8071` svetlá, `0x1004`/`0x1000`/`0x1001`/`0x1F20` batéria). Ak zariadenie nepozná, vypíše do logu zoznam jeho funkcií.
+- **ASUS Aura USB:** ovládač `0B05:18F3/1939/19AF/1AA6/1BED`; LED a konektory číta z jeho konfiguračnej tabuľky.
+- **MSI GPU:** len karty s presnými PCI ID (`10DE:2882` + MSI `5160`/`5164`), adresa `0x68`, len dokumentované registre, pred prvým zápisom kontrolné čítanie, nikdy zápis do flash pamäte.
+- **ASUS SMBus:** len adresy `0x40`, `0x4E`, `0x4F`, len na doskách ASUS a len po overení odtlačku ENE čipu. RAM sa nikdy nedotýka.
 
-```bash
-npm install
-```
+</details>
 
-```bash
-npm run tauri dev
-```
+## 📦 Inštalácia
 
-To try the app without hardware, enable **Virtual devices** in the header, or
-start with `RGBVE_VIRTUAL_DEVICES=1 npm run tauri dev`.
+1. Stiahnite inštalátor pre Windows:
+   - **MSI** (`…_x64_sk-SK.msi` alebo `…_x64_en-US.msi`): štandardný inštalátor pre Windows
+   - **EXE** (`…_x64-setup.exe`): pri inštalácii si vyberiete jazyk
+   - pre 32-bitový Windows sú verzie s `x86`
 
-To work on the UI alone, run `npm run dev` and open http://localhost:1420. In a
-plain browser the app uses an in-memory simulator instead of the Rust backend.
+   Inštalátory vytvára workflow [**Windows installers**](https://github.com/bucala/RGB-Visual-Enhancer/actions/workflows/windows-installers.yml) (sekcia *Artifacts* pri poslednom behu).
+2. Inštalátor nie je digitálne podpísaný, preto Windows SmartScreen zobrazí upozornenie: **Ďalšie informácie → Spustiť aj tak**.
+3. **Zatvorte G HUB, Armoury Crate, MSI Center a OpenRGB.** Inak budú farby navzájom prepisovať.
 
-Release build for the current OS (installers land in `target/release/bundle/`):
+<details>
+<summary><b>🐧 Linux</b></summary>
 
-```bash
-npm run tauri build
-```
-
-### Installers for x86 / x64
-
-**On Windows (native):** install
-[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-with the *Desktop development with C++* workload, plus Rust and Node 22+.
-Then:
-
-```powershell
-npm install
-```
-
-```powershell
-npm run tauri build
-```
-
-The 64-bit installers are written to `target\release\bundle\nsis\` (`.exe`)
-and `target\release\bundle\msi\` (`.msi`). For a 32-bit (x86) build:
-
-```powershell
-rustup target add i686-pc-windows-msvc
-```
-
-```powershell
-npm run tauri build -- --target i686-pc-windows-msvc
-```
-
-The output goes to `target\i686-pc-windows-msvc\release\bundle\`.
-
-**GitHub Actions:** push a `v*` tag or run the *Release* workflow manually. It
-builds Windows x64, Windows x86 (32-bit), and Linux x86_64 installers and
-attaches them to a draft release.
-
-**Cross-compiling Windows installers from a Linux host:** use MinGW-w64 and
-NSIS (`apt install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 nsis`). Don't use
-these `-gnu` targets on Windows itself. Tauri treats cross-compilation as
-experimental.
-
-```bash
-rustup target add x86_64-pc-windows-gnu i686-pc-windows-gnu
-```
-
-```bash
-npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
-```
-
-```bash
-npm run tauri build -- --target i686-pc-windows-gnu --bundles nsis
-```
-
-Unsigned installers trigger a Windows SmartScreen warning ("More info → Run
-anyway"). The installer downloads the WebView2 runtime if it's missing; it
-ships with Windows 10 and 11.
-
-## System tray
-
-Like G HUB, the app keeps running in the system tray:
-
-- Closing or minimising the window hides it to the tray. Left-click the tray
-  icon to bring it back; **Quit** in the tray menu exits.
-- Right-click shows every device with its current colour as a swatch, its
-  status, connection, battery level (wireless Logitech devices via HID++
-  `0x1004`/`0x1000`/`0x1001`/`0x1F20`, refreshed every 60 s), and quick
-  colour presets, per device or for all devices at once.
-- **Start with system (in tray)** launches the app hidden at login
-  (`--minimized`).
-- Starting the app a second time just shows the running instance.
-
-If no tray is available (for example a Linux desktop without AppIndicator
-support), closing the window quits as usual.
-
-## Hardware access
-
-### Linux
+Balík `.deb` nainštaluje aj udev pravidlá. Pri ručnej inštalácii:
 
 ```bash
 sudo cp packaging/linux/60-rgb-visual-enhancer.rules /etc/udev/rules.d/
@@ -127,60 +136,126 @@ sudo cp packaging/linux/60-rgb-visual-enhancer.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-The `.deb` package installs this rule automatically.
+Pre ASUS cez SMBus načítajte `i2c-dev` a pridajte sa do skupiny `i2c`:
 
-- **Logitech:** the rule grants the logged-in user access to Logitech `hidraw` nodes.
-- **ASUS Aura (SMBus):** load `i2c-dev` and add yourself to the `i2c` group:
-
-  ```bash
-  echo i2c-dev | sudo tee /etc/modules-load.d/i2c-dev.conf && sudo modprobe i2c-dev
-  ```
-
-  ```bash
-  sudo groupadd -f i2c && sudo usermod -aG i2c "$USER"
-  ```
-
-  Some AMD boards also need the kernel parameter `acpi_enforce_resources=lax`
-  before the PIIX4 SMBus driver binds.
-- **BLE:** requires BlueZ and a running D-Bus system bus.
-
-### Windows
-
-USB HID and BLE work without extra drivers. The chipset SMBus can only be
-reached from kernel mode, so ASUS Aura over SMBus needs a signed port-I/O
-driver such as PawnIO. The `SmbusBus` trait
-(`crates/rgb-core/src/drivers/asus_aura/smbus.rs`) is the integration point.
-Until a backend is added, the app reports this in the activity log rather than
-failing.
-
-### SMBus safety
-
-The SMBus is shared with RAM SPD EEPROMs, sensors, and VRM controllers. The
-Aura driver only probes the documented Aura addresses (`0x40`, `0x4E`, `0x4F`),
-only on buses whose PCI subsystem vendor is ASUS (`0x1043`) or on boards whose
-DMI vendor is ASUS. It also only talks to a chip after it passes the ENE
-fingerprint check. DRAM modules, which need address remapping, are deliberately
-left alone.
-
-## Project layout
-
-```
-crates/rgb-core/          Hardware abstraction (no Tauri dependency)
-  src/controller.rs         RgbController + DeviceDetector traits
-  src/manager.rs            DeviceManager: per-device actor tasks, events, timeouts
-  src/drivers/logitech/     HID++ 2.0 framing (pure) + hidapi transport
-  src/drivers/asus_aura/    ENE register protocol (pure) + SMBus backends
-  src/drivers/ble/          GATT profiles (pure) + btleplug transport
-  src/drivers/virtual_device.rs
-  tests/manager.rs          Concurrency, coalescing, timeout, and error-path tests
-src-tauri/                Tauri shell: IPC commands + event forwarding (+ IPC contract test)
-src/                      React UI (lib/backend.ts is the IPC boundary)
-firmware/esp32-ble-rgb/   Arduino firmware for the open RGBVE BLE protocol
-packaging/linux/          udev rules
-docs/ARCHITECTURE.md      Design notes
+```bash
+echo i2c-dev | sudo tee /etc/modules-load.d/i2c-dev.conf && sudo modprobe i2c-dev
 ```
 
-## Development
+```bash
+sudo groupadd -f i2c && sudo usermod -aG i2c "$USER"
+```
+
+Niektoré AMD dosky potrebujú parameter jadra `acpi_enforce_resources=lax`. Bluetooth vyžaduje BlueZ a bežiacu systémovú D-Bus. Na Linuxe má lišta natívne menu, lebo AppIndicator nehlási kliknutia.
+
+</details>
+
+## 🎮 Ovládanie
+
+| Kde | Akcia | Čo sa stane |
+|---|---|---|
+| Ikona v lište | <kbd>Ľavé tlačidlo</kbd> | Zobrazí alebo skryje hlavné okno |
+| Ikona v lište | <kbd>Pravé tlačidlo</kbd> | Menu so zariadeniami, batériou a rýchlymi farbami |
+| Zariadenie v zozname | <kbd>Pravé tlačidlo</kbd> | Farby, efekty, vypnutie svetiel, kopírovanie informácií |
+| Zóna | <kbd>Pravé tlačidlo</kbd> | Nafarbenie zóny vybranou alebo predvolenou farbou |
+| Predvolená farba | <kbd>Pravé tlačidlo</kbd> | Použiť na toto alebo na všetky zariadenia |
+| Log aktivity | <kbd>Pravé tlačidlo</kbd> | Kopírovať správu alebo celý log, vymazať log |
+| Okno | <kbd>✕</kbd> alebo minimalizovať | Aplikácia beží ďalej v lište |
+| Menu v lište | <kbd>Esc</kbd> alebo klik mimo | Zavrie menu |
+
+<details>
+<summary><b>💡 Tipy</b></summary>
+
+- **Synchronizovať všetky** v hlavičke pošle zmenu farby na všetky zariadenia naraz.
+- Pri slúchadlách G733 sa batéria počíta z napätia, preto je pred číslom `≈`.
+- Pri vypnutých slúchadlách sa batéria nezobrazí; po zapnutí sa objaví do minúty.
+- **Nastavenia → Virtuálne zariadenia** pridá simulovaný hardvér na vyskúšanie.
+- Aplikácia si zatiaľ nepamätá farby po reštarte PC.
+
+</details>
+
+## 🧩 Ako to funguje
+
+```mermaid
+flowchart LR
+    subgraph UI["🖼️ React UI"]
+        W[Hlavné okno]
+        T[Menu v lište]
+    end
+    subgraph Shell["🦀 Tauri"]
+        C[IPC príkazy]
+        E[Udalosti]
+        S[(settings.json)]
+    end
+    subgraph Core["⚙️ rgb-core"]
+        M[DeviceManager]
+        A1[[Logitech]]
+        A2[[ASUS Aura]]
+        A3[[MSI GPU]]
+        A4[[Bluetooth]]
+    end
+    W & T -- invoke --> C --> M
+    M --> A1 & A2 & A3 & A4
+    M -- broadcast --> E -- emit --> W & T
+    C <--> S
+    A1 -- HID++ --> H1((USB))
+    A2 -- reporty 0xEC --> H2((USB))
+    A3 -- NvAPI I²C --> H3((GPU))
+    A4 -- GATT --> H4((BLE))
+```
+
+Každé zariadenie obsluhuje vlastná úloha (actor). Príkazy pre jedno zariadenie idú v poradí. Rýchle zmeny farby (ťahanie výberu) sa spoja do jedného zápisu. Každá operácia má časový limit, takže zaseknuté zariadenie neblokuje ostatné. Podrobnosti sú v [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (po anglicky).
+
+## 🔧 Pre vývojárov
+
+<details>
+<summary><b>Spustenie zo zdrojového kódu</b></summary>
+
+Potrebujete Rust (stable), Node 22+ a [systémové závislosti Tauri](https://v2.tauri.app/start/prerequisites/). Na Windows je to Visual Studio Build Tools s „Desktop development with C++“.
+
+```bash
+npm install
+```
+
+```bash
+npm run tauri dev
+```
+
+Iba UI v prehliadači so simulátorom (bez Rustu a hardvéru):
+
+```bash
+npm run dev
+```
+
+</details>
+
+<details>
+<summary><b>Zostavenie inštalátorov</b></summary>
+
+Na Windows (MSI aj EXE, 64-bit):
+
+```powershell
+npm run tauri build
+```
+
+32-bitová verzia:
+
+```powershell
+rustup target add i686-pc-windows-msvc
+```
+
+```powershell
+npm run tauri build -- --target i686-pc-windows-msvc
+```
+
+Výsledky sú v `target\…\release\bundle\msi\` a `bundle\nsis\`. Na GitHube ich zostaví workflow *Windows installers* pri každom pushi. Workflow *Release* (tag `v*`) ich pripojí ku konceptu vydania.
+
+Z Linuxu sa dá krížovo zostaviť len NSIS inštalátor (MinGW + NSIS); MSI vyžaduje Windows.
+
+</details>
+
+<details>
+<summary><b>Testy a kontrola kódu</b></summary>
 
 ```bash
 cargo test --workspace
@@ -194,23 +269,39 @@ cargo clippy --workspace --all-targets -- -D warnings
 npm run build
 ```
 
-`cargo test` for `src-tauri` embeds the built frontend, so run `npm run build`
-first. The Rust tests never touch real hardware: the manager tests use
-simulated controllers, protocol tests check exact byte layouts, and the Aura
-tests run against an in-memory ENE register model.
+Testy nikdy nepristupujú k skutočnému hardvéru: protokoly sa testujú na presné bajty, ASUS ovládač na simulovanom čipe, manažér na virtuálnych zariadeniach a IPC rozhranie cez mock runtime Tauri.
 
-### Adding a driver
+</details>
 
-1. Implement `RgbController` for the device. Do blocking I/O inside
-   `tokio::task::spawn_blocking`, and advertise only the `EffectId`s the
-   device really supports.
-2. Implement `DeviceDetector`. Return uninitialised controllers with stable
-   ids, skip ids in `known`, and turn recoverable problems into warnings.
-3. Register it in `rgb_core::default_detectors`, behind a cargo feature if it
-   pulls in new system dependencies.
+<details>
+<summary><b>Pridanie nového ovládača</b></summary>
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the threading model.
+1. Implementujte `RgbController` (blokujúce I/O do `tokio::task::spawn_blocking`, ponúkajte len efekty, ktoré zariadenie naozaj vie).
+2. Implementujte `DeviceDetector` (stabilné ID, preskočiť ID v `known`, problémy vracať ako varovania).
+3. Zaregistrujte ho v `rgb_core::default_detectors`.
 
-## License
+</details>
 
-MIT
+<details>
+<summary><b>Štruktúra projektu</b></summary>
+
+```
+crates/rgb-core/          Rust jadro bez závislosti na UI
+  src/manager.rs            DeviceManager: actor na zariadenie, udalosti, limity
+  src/drivers/logitech/     HID++ 2.0 (svetlá, batéria)
+  src/drivers/asus_aura*    ASUS Aura (USB, SMBus)
+  src/drivers/msi_gpu/      MSI GPU cez NvAPI I²C
+  src/drivers/ble/          Bluetooth LE profily
+src-tauri/                Tauri: IPC, lišta, nastavenia, inštalátory
+src/                      React UI (preklady, menu v lište, kontextové menu)
+firmware/esp32-ble-rgb/   Firmvér pre vlastný ESP32 LED ovládač
+docs/                     Architektúra, obrázky, anglické README
+```
+
+</details>
+
+## 📄 Licencia
+
+[MIT](LICENSE). Protokoly zariadení sú implementované podľa verejnej dokumentácie projektov [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) a [Solaar](https://github.com/pwr-Solaar/Solaar).
+
+<p align="center"><sub>Vytvorené s 🌈 pre všetkých, ktorí chcú RGB bez bloatwaru.</sub></p>
