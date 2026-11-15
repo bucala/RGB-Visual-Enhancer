@@ -1,0 +1,17 @@
+# RGB Visual Enhancer – device access for the logged-in user.
+#
+# Install:
+#   sudo cp 60-rgb-visual-enhancer.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# (The .deb package installs this file automatically.)
+
+# Logitech HID++ devices (keyboards, mice, speakers, receivers): hidraw access.
+KERNEL=="hidraw*", ATTRS{idVendor}=="046d", TAG+="uaccess"
+
+# Chipset SMBus (Intel i801 / AMD PIIX4) for ASUS Aura motherboard lighting.
+# Requires the i2c-dev module:  echo i2c-dev | sudo tee /etc/modules-load.d/i2c-dev.conf
+# SMBus is shared with RAM SPD and sensors, so access is limited to members
+# of the "i2c" group instead of every local user:
+#   sudo groupadd -f i2c && sudo usermod -aG i2c $USER   (then log out/in)
+SUBSYSTEM=="i2c-dev", ATTR{name}=="SMBus I801 adapter*", GROUP="i2c", MODE="0660"
+SUBSYSTEM=="i2c-dev", ATTR{name}=="SMBus PIIX4 adapter*", GROUP="i2c", MODE="0660"
