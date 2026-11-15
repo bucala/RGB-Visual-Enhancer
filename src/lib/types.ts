@@ -88,8 +88,13 @@ export interface SystemInfo {
   cpu: string | null;
 }
 
+export type Lang = "sk" | "en";
+
 export interface Settings {
   virtual_devices: boolean;
+  language: Lang;
+  /** Windows/macOS use the app-styled tray menu window. */
+  custom_tray_menu: boolean;
 }
 
 export interface DeviceFailure {

@@ -5,6 +5,7 @@
 //! back to the frontend through the [`EVENT_CHANNEL`] event.
 
 mod commands;
+mod settings;
 mod tray;
 
 use std::sync::atomic::AtomicBool;
@@ -21,6 +22,8 @@ use tokio::sync::broadcast::error::RecvError;
 pub const EVENT_CHANNEL: &str = "rgb://event";
 /// Emitted when the UI may have missed events and should refetch state.
 pub const RESYNC_CHANNEL: &str = "rgb://resync";
+/// Emitted to every window when persisted settings change (e.g. language).
+pub const SETTINGS_CHANNEL: &str = "rgb://settings";
 
 pub struct AppState {
     pub manager: DeviceManager,
@@ -45,6 +48,13 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync 
         commands::get_system_info,
         commands::get_settings,
         commands::set_virtual_devices,
+        commands::set_language,
+        commands::get_autostart,
+        commands::set_autostart,
+        commands::show_main_window,
+        commands::hide_tray_menu,
+        commands::tray_menu_resize,
+        commands::quit_app,
     ]
 }
 
@@ -80,6 +90,12 @@ pub fn run() {
                 .state::<tray::TrayState>()
                 .available
                 .load(Ordering::SeqCst);
+            if window.label() == tray::MENU_WINDOW {
+                if let WindowEvent::Focused(false) = event {
+                    tray::hide_menu(window.app_handle());
+                }
+                return;
+            }
             if !in_tray || window.label() != "main" {
                 return;
             }
@@ -96,6 +112,15 @@ pub fn run() {
         })
         .invoke_handler(invoke_handler())
         .setup(move |app| {
+            let settings = match app.path().app_config_dir() {
+                Ok(dir) => settings::SettingsStore::load(dir.join("settings.json")),
+                Err(e) => {
+                    log::warn!("no config directory, settings won't persist: {e}");
+                    settings::SettingsStore::in_memory()
+                }
+            };
+            app.manage(settings);
+
             // Forward manager events to the webview.
             let handle = app.handle().clone();
             let mut events = manager.subscribe();
@@ -172,6 +197,12 @@ mod ipc_tests {
                 manager: DeviceManager::new(detectors, ManagerConfig::default()),
                 virtual_devices,
             })
+            .manage(settings::SettingsStore::in_memory())
+            .manage(tray::TrayState::default())
+            .plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))
             .invoke_handler(invoke_handler())
             .build(tauri::generate_context!())
             .expect("mock app");
@@ -266,10 +297,17 @@ mod ipc_tests {
         assert!(err.as_str().unwrap().contains("does not support"));
 
         assert!(call(&w, "get_system_info", json!({})).unwrap()["os"].is_string());
+        let settings = call(&w, "get_settings", json!({})).unwrap();
+        assert_eq!(settings["virtual_devices"], true);
+        assert_eq!(settings["language"], "sk", "Slovak is the default");
+        call(&w, "set_language", json!({ "language": "en" })).unwrap();
         assert_eq!(
-            call(&w, "get_settings", json!({})).unwrap(),
-            json!({ "virtual_devices": true })
+            call(&w, "get_settings", json!({})).unwrap()["language"],
+            "en"
         );
+        assert!(call(&w, "set_language", json!({ "language": "de" })).is_err());
+        call(&w, "tray_menu_resize", json!({ "height": 300.0 })).unwrap();
+        call(&w, "hide_tray_menu", json!({})).unwrap();
         call(&w, "set_virtual_devices", json!({ "enabled": false })).unwrap();
         assert_eq!(call(&w, "list_devices", json!({})).unwrap(), json!([]));
         call(&w, "remove_device", json!({ "deviceId": id })).unwrap_err();

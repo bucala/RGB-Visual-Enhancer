@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { Layers, MousePointerClick } from "lucide-react";
+import { useI18n } from "../i18n";
 import { hexToRgb, hsvToRgb, PRESETS, rgbCss, rgbToHex, rgbToHsv, type Hsv } from "../lib/color";
+import { useContextMenu } from "./ContextMenu";
 import type { Rgb } from "../lib/types";
 
 const clamp = (n: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
@@ -23,7 +26,15 @@ function useDrag(onMove: (x: number, y: number) => void) {
   };
 }
 
-export function ColorPicker({ value, onChange, disabled }: { value: Rgb; onChange: (c: Rgb) => void; disabled?: boolean }) {
+export function ColorPicker({ value, onChange, onApplyAll, disabled }: {
+  value: Rgb;
+  onChange: (c: Rgb) => void;
+  /** Offered from a preset's context menu. */
+  onApplyAll?: (c: Rgb) => void;
+  disabled?: boolean;
+}) {
+  const { t } = useI18n();
+  const ctx = useContextMenu();
   // Keep HSV locally so hue survives at zero saturation/value.
   const [hsv, setHsv] = useState<Hsv>(() => rgbToHsv(value));
   const [hex, setHex] = useState(rgbToHex(value));
@@ -58,7 +69,7 @@ export function ColorPicker({ value, onChange, disabled }: { value: Rgb; onChang
       <div
         {...sv}
         role="slider"
-        aria-label="Saturation and brightness"
+        aria-label={t("picker.sv")}
         aria-valuenow={Math.round(hsv.s * 100)}
         className="relative h-44 w-full cursor-crosshair touch-none"
       >
@@ -75,7 +86,7 @@ export function ColorPicker({ value, onChange, disabled }: { value: Rgb; onChang
       <div
         {...hue}
         role="slider"
-        aria-label="Hue"
+        aria-label={t("picker.hue")}
         aria-valuenow={Math.round(hsv.h)}
         className="hue-track relative h-3 w-full cursor-pointer touch-none rounded-full"
       >
@@ -125,8 +136,17 @@ export function ColorPicker({ value, onChange, disabled }: { value: Rgb; onChang
           <button
             key={rgbToHex(p)}
             type="button"
-            aria-label={`Preset ${rgbToHex(p)}`}
+            aria-label={t("picker.preset", { hex: rgbToHex(p) })}
             onClick={() => commit(rgbToHsv(p))}
+            onContextMenu={(e) =>
+              ctx.open(e, [
+                { kind: "header", label: rgbToHex(p).toUpperCase() },
+                { kind: "item", label: t("ctx.applyHere"), icon: <MousePointerClick size={13} />, onSelect: () => commit(rgbToHsv(p)) },
+                ...(onApplyAll
+                  ? [{ kind: "item" as const, label: t("ctx.applyAll"), icon: <Layers size={13} />, onSelect: () => onApplyAll(p) }]
+                  : []),
+              ])
+            }
             className="h-7 w-7 rounded-full border border-white/10 transition hover:scale-110"
             style={{ background: rgbCss(p) }}
           />

@@ -85,6 +85,9 @@ export function createDemoBackend(): Backend {
   const listeners = new Set<(e: ManagerEvent) => void>();
   let enabled = true;
   let scanning = false;
+  let language: "sk" | "en" = "sk";
+  let autostart = false;
+  const settingsListeners = new Set<(s: { language: "sk" | "en" }) => void>();
   const emit = (e: ManagerEvent) => listeners.forEach((l) => l(structuredClone(e)));
 
   const update = (id: string, fn: (d: Device) => void) => {
@@ -119,7 +122,11 @@ export function createDemoBackend(): Backend {
           }
         }
       }
-      const warnings = ["Hardware access is unavailable in the browser demo; run `npm run tauri dev`."];
+      const warnings = [
+        language === "sk"
+          ? "V prehliadači nie je prístup k hardvéru; spustite `npm run tauri dev`."
+          : "Hardware access is unavailable in the browser demo; run `npm run tauri dev`.",
+      ];
       emit({ type: "warning", source: "Demo", message: warnings[0]! });
       const summary = {
         added,
@@ -177,7 +184,28 @@ export function createDemoBackend(): Backend {
       };
     },
     async getSettings() {
-      return { virtual_devices: enabled };
+      return { virtual_devices: enabled, language, custom_tray_menu: false };
+    },
+    async setLanguage(lang) {
+      language = lang;
+      settingsListeners.forEach((l) => l({ language }));
+    },
+    async getAutostart() {
+      return autostart;
+    },
+    async setAutostart(on) {
+      autostart = on;
+    },
+    async showMainWindow() {},
+    async hideTrayMenu() {},
+    async resizeTrayMenu() {},
+    async quit() {},
+    async onSettings(cb) {
+      settingsListeners.add(cb);
+      return () => settingsListeners.delete(cb);
+    },
+    async onTrayOpened() {
+      return () => {};
     },
     async setVirtualDevices(on) {
       enabled = on;

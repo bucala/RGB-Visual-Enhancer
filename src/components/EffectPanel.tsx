@@ -1,8 +1,11 @@
 import { Gauge } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
+import { effectKey } from "../lib/deviceText";
 import type { Device } from "../lib/types";
 
 export function EffectPanel({ device, onEffect }: { device: Device; onEffect: (effect: number, speed: number) => void }) {
+  const { t } = useI18n();
   const [speed, setSpeed] = useState(device.speed);
   useEffect(() => setSpeed(device.speed), [device.id, device.speed]);
 
@@ -22,9 +25,9 @@ export function EffectPanel({ device, onEffect }: { device: Device; onEffect: (e
                 on ? "border-accent bg-accent/15 text-text" : "border-line bg-bg text-muted hover:border-accent/50 hover:text-text"
               }`}
             >
-              {e.name}
+              {t(effectKey(e.id))}
               <span className="mt-0.5 block text-[10px] font-normal text-muted">
-                {e.uses_color ? "Uses colour" : e.uses_speed ? "Animated" : e.id === 0 ? "Lights off" : ""}
+                {e.uses_color ? t("effect.usesColour") : e.uses_speed ? t("effect.animated") : e.id === 0 ? t("effect.lightsOff") : ""}
               </span>
             </button>
           );
@@ -33,7 +36,7 @@ export function EffectPanel({ device, onEffect }: { device: Device; onEffect: (e
 
       <label className="flex items-center gap-3 text-xs text-muted">
         <Gauge size={14} />
-        Speed
+        {t("panel.speed")}
         <input
           type="range"
           min={0}

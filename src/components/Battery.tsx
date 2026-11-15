@@ -1,12 +1,12 @@
 import { BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, BatteryWarning } from "lucide-react";
 import type { BatteryInfo } from "../lib/types";
 
-export function batteryLabel(b: BatteryInfo): string {
-  return `${b.approximate ? "≈" : ""}${b.percent} %${b.charging ? " · charging" : ""}`;
+export function batteryTone(b: BatteryInfo): string {
+  return b.charging ? "text-sky-300" : b.percent <= 15 ? "text-rose-300" : b.percent <= 30 ? "text-amber-300" : "text-emerald-300";
 }
 
 export function BatteryBadge({ battery, size = 12 }: { battery: BatteryInfo; size?: number }) {
-  const { percent, charging } = battery;
+  const { percent, charging, approximate } = battery;
   const Icon = charging
     ? BatteryCharging
     : percent <= 10
@@ -16,10 +16,10 @@ export function BatteryBadge({ battery, size = 12 }: { battery: BatteryInfo; siz
         : percent <= 70
           ? BatteryMedium
           : BatteryFull;
-  const tone = charging ? "text-sky-300" : percent <= 15 ? "text-rose-300" : percent <= 30 ? "text-amber-300" : "text-emerald-300";
   return (
-    <span className={`inline-flex items-center gap-1 ${tone}`} title={batteryLabel(battery)}>
+    <span className={`inline-flex items-center gap-1 ${batteryTone(battery)}`}>
       <Icon size={size} />
+      {approximate ? "≈" : ""}
       {percent}%
     </span>
   );

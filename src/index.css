@@ -36,8 +36,39 @@ textarea {
   user-select: text;
 }
 
+@property --rgb-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .rgb-ring {
-  background: conic-gradient(from 0deg, #ff004c, #ff9f00, #f5ff00, #00ff6a, #00e5ff, #3b5bff, #b000ff, #ff004c);
+  background: conic-gradient(from var(--rgb-angle), #ff004c, #ff9f00, #f5ff00, #00ff6a, #00e5ff, #3b5bff, #b000ff, #ff004c);
+}
+
+.rgb-spin {
+  animation: rgb-rotate 6s linear infinite;
+}
+
+@keyframes rgb-rotate {
+  to {
+    --rgb-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rgb-spin {
+    animation: none;
+  }
+}
+
+/* The tray menu window is transparent; the card draws its own shadow. */
+html.tray-view,
+html.tray-view body,
+html.tray-view #root {
+  background: transparent;
+  height: auto;
+  overflow: hidden;
 }
 
 .hue-track {

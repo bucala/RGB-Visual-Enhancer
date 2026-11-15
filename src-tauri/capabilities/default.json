@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Main window: core IPC and event listening. App commands are allowed by default.",
-  "windows": ["main"],
+  "windows": ["main", "tray-menu"],
   "permissions": ["core:default"]
 }
