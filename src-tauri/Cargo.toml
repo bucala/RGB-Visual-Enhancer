@@ -1,0 +1,26 @@
+[package]
+name = "rgb-visual-enhancer"
+description = "Lightweight cross-vendor RGB lighting control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "rgb_visual_enhancer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+rgb-core = { path = "../crates/rgb-core" }
+tauri = { version = "2", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+log.workspace = true
+env_logger = "0.11"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
