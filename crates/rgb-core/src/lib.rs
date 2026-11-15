@@ -34,7 +34,13 @@ pub fn default_detectors(virtual_enabled: Arc<AtomicBool>) -> Vec<Arc<dyn Device
         drivers::virtual_device::VirtualDetector::new(virtual_enabled),
     )];
     #[cfg(feature = "hid")]
-    detectors.push(Arc::new(drivers::logitech::LogitechDetector::default()));
+    {
+        let hid = drivers::hid::SharedHidApi::default();
+        detectors.push(Arc::new(drivers::logitech::LogitechDetector::new(
+            hid.clone(),
+        )));
+        detectors.push(Arc::new(drivers::asus_aura_usb::AuraUsbDetector::new(hid)));
+    }
     #[cfg(feature = "smbus")]
     detectors.push(Arc::new(drivers::asus_aura::AuraSmbusDetector));
     #[cfg(feature = "ble")]

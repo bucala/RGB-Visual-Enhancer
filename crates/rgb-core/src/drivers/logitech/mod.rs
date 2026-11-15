@@ -10,7 +10,30 @@ mod device;
 pub use device::{LogitechController, LogitechDetector};
 
 pub const LOGITECH_VID: u16 = 0x046D;
-/// Vendor-defined usage page that carries HID++ reports.
-pub const HIDPP_USAGE_PAGE: u16 = 0xFF00;
-/// Usage of the long-report (0x11) collection.
-pub const HIDPP_USAGE_LONG: u16 = 0x0002;
+/// Vendor-defined usage pages that carry HID++ reports: `0xFF00` on most
+/// mice and receivers, `0xFF43` on G keyboards (G810/G910/G512…) and
+/// headsets (G733/G933…).
+pub const HIDPP_USAGE_PAGES: [u16; 2] = [0xFF00, 0xFF43];
+
+/// Whether a HID collection carries 20-byte long (`0x11`) reports. Long
+/// collections use usage `0x0002` on page `0xFF00` and `0x0602` / `0x0202`
+/// on page `0xFF43`; the low byte is `0x02` in every case. (`0x01` is the
+/// short-report collection, `0x04` the 64-byte one.)
+pub fn is_long_report_collection(usage_page: u16, usage: u16) -> bool {
+    HIDPP_USAGE_PAGES.contains(&usage_page) && usage & 0x00FF == 0x02
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn long_report_collections() {
+        assert!(is_long_report_collection(0xFF00, 0x0002)); // G502
+        assert!(is_long_report_collection(0xFF43, 0x0602)); // G910
+        assert!(is_long_report_collection(0xFF43, 0x0202)); // G733
+        assert!(!is_long_report_collection(0xFF00, 0x0001));
+        assert!(!is_long_report_collection(0xFF43, 0x0604));
+        assert!(!is_long_report_collection(0x0001, 0x0002));
+    }
+}

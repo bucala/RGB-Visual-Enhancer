@@ -7,8 +7,9 @@ use async_trait::async_trait;
 use hidapi::{HidApi, HidDevice};
 
 use super::hidpp::{self, effect, LightingFeature, Request, Response, PARAMS_LONG};
-use super::{HIDPP_USAGE_LONG, HIDPP_USAGE_PAGE, LOGITECH_VID};
+use super::{is_long_report_collection, HIDPP_USAGE_PAGES, LOGITECH_VID};
 use crate::controller::{DetectionReport, DeviceDetector, RgbController, RgbResult};
+use crate::drivers::hid::SharedHidApi;
 use crate::types::{scale_speed, DeviceInfo, DeviceType, EffectId, Rgb, Transport, ZoneInfo};
 
 const REPLY_TIMEOUT: Duration = Duration::from_millis(600);
@@ -158,6 +159,29 @@ impl LogitechController {
         Ok((name, kind))
     }
 
+    /// All feature ids the device implements (via `IFeatureSet`, 0x0001).
+    /// Used for diagnostics when a device lacks a supported lighting feature.
+    async fn list_features(&self) -> RgbResult<Vec<u16>> {
+        let feat = self
+            .feature_index(hidpp::FEATURE_FEATURE_SET)
+            .await?
+            .ok_or("no IFeatureSet")?;
+        let dev = self.device_index;
+        let count = self
+            .channel
+            .request(Request::new(dev, feat, 0, &[]))
+            .await?[0];
+        let mut ids = Vec::with_capacity(count as usize);
+        for i in 1..=count {
+            let r = self
+                .channel
+                .request(Request::new(dev, feat, 1, &[i]))
+                .await?;
+            ids.push(u16::from_be_bytes([r[0], r[1]]));
+        }
+        Ok(ids)
+    }
+
     async fn discover_lighting(&self) -> RgbResult<Lighting> {
         let (feature, feature_index) = match self
             .feature_index(hidpp::FEATURE_COLOR_LED_EFFECTS)
@@ -166,7 +190,19 @@ impl LogitechController {
             Some(i) => (LightingFeature::ColorLedEffects, i),
             None => match self.feature_index(hidpp::FEATURE_RGB_EFFECTS).await? {
                 Some(i) => (LightingFeature::RgbEffects, i),
-                None => return Err("device has no HID++ lighting feature (0x8070/0x8071)".into()),
+                None => {
+                    let features = match self.list_features().await {
+                        Ok(f) => f
+                            .iter()
+                            .map(|f| format!("0x{f:04x}"))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        Err(e) => format!("unavailable ({e})"),
+                    };
+                    return Err(format!(
+                        "no supported HID++ lighting feature (0x8070/0x8071); device features: {features}"
+                    ));
+                }
             },
         };
         let dev = self.device_index;
@@ -340,16 +376,14 @@ impl RgbController for LogitechController {
 }
 
 /// Enumerates HID++ interfaces of Logitech devices.
+#[derive(Default)]
 pub struct LogitechDetector {
-    // hidapi wants a single long-lived context.
-    api: Arc<Mutex<Option<HidApi>>>,
+    api: SharedHidApi,
 }
 
-impl Default for LogitechDetector {
-    fn default() -> Self {
-        Self {
-            api: Arc::new(Mutex::new(None)),
-        }
+impl LogitechDetector {
+    pub fn new(api: SharedHidApi) -> Self {
+        Self { api }
     }
 }
 
@@ -378,36 +412,21 @@ fn guess_type(product: &str) -> DeviceType {
 }
 
 fn detect_blocking(
-    api_slot: &Mutex<Option<HidApi>>,
+    api: &mut HidApi,
+    warnings: &mut Vec<String>,
     known: &HashSet<String>,
-) -> (Vec<Box<dyn RgbController>>, Vec<String>) {
-    let mut warnings = Vec::new();
+) -> Vec<Box<dyn RgbController>> {
     let mut controllers: Vec<Box<dyn RgbController>> = Vec::new();
-
-    let mut guard = match api_slot.lock() {
-        Ok(g) => g,
-        Err(_) => return (controllers, vec!["HID context poisoned".into()]),
-    };
-    if guard.is_none() {
-        match HidApi::new() {
-            Ok(api) => *guard = Some(api),
-            Err(e) => return (controllers, vec![format!("cannot initialise hidapi: {e}")]),
-        }
-    }
-    let api = guard.as_mut().expect("initialised above");
-    if let Err(e) = api.refresh_devices() {
-        warnings.push(format!("HID enumeration failed: {e}"));
-    }
 
     // One candidate per physical HID++ interface. On Windows each top-level
     // collection is its own path, so pick the long-report one; on Linux all
     // usages share a hidraw node and dedupe by path.
     let mut candidates: BTreeMap<String, Candidate> = BTreeMap::new();
     for d in api.device_list() {
-        if d.vendor_id() != LOGITECH_VID || d.usage_page() != HIDPP_USAGE_PAGE {
+        if d.vendor_id() != LOGITECH_VID || !HIDPP_USAGE_PAGES.contains(&d.usage_page()) {
             continue;
         }
-        if cfg!(windows) && d.usage() != HIDPP_USAGE_LONG {
+        if cfg!(windows) && !is_long_report_collection(d.usage_page(), d.usage()) {
             continue;
         }
         let path_display = d.path().to_string_lossy().into_owned();
@@ -490,7 +509,7 @@ fn detect_blocking(
             )));
         }
     }
-    (controllers, warnings)
+    controllers
 }
 
 #[async_trait]
@@ -502,11 +521,23 @@ impl DeviceDetector for LogitechDetector {
     async fn detect(&self, known: &HashSet<String>) -> DetectionReport {
         let api = self.api.clone();
         let known = known.clone();
-        match tokio::task::spawn_blocking(move || detect_blocking(&api, &known)).await {
-            Ok((controllers, warnings)) => DetectionReport {
+        let result = tokio::task::spawn_blocking(move || {
+            api.with_refreshed(|api, warnings| {
+                let controllers = detect_blocking(api, warnings, &known);
+                (controllers, std::mem::take(warnings))
+            })
+        })
+        .await;
+        match result {
+            Ok(Ok((controllers, warnings))) => DetectionReport {
                 controllers,
                 warnings,
             },
+            Ok(Err(e)) => {
+                let mut r = DetectionReport::default();
+                r.warn(e);
+                r
+            }
             Err(e) => {
                 let mut r = DetectionReport::default();
                 r.warn(format!("HID detection panicked: {e}"));

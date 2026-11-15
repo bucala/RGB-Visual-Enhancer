@@ -38,6 +38,7 @@ pub const ERROR_FEATURE_INDEX: u8 = 0xFF;
 pub const HIDPP10_ERROR: u8 = 0x8F;
 
 pub const FEATURE_ROOT: u16 = 0x0000;
+pub const FEATURE_FEATURE_SET: u16 = 0x0001;
 pub const FEATURE_DEVICE_NAME: u16 = 0x0005;
 pub const FEATURE_COLOR_LED_EFFECTS: u16 = 0x8070;
 pub const FEATURE_RGB_EFFECTS: u16 = 0x8071;

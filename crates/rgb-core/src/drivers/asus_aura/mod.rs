@@ -177,9 +177,13 @@ fn detect_blocking(known: &HashSet<String>) -> (Vec<Box<dyn RgbController>>, Vec
     let buses = match smbus::enumerate_buses() {
         Ok(b) => b,
         Err(e) => {
-            // Only worth a warning on ASUS boards; elsewhere it's expected.
-            if asus_board {
+            // Only worth a warning on ASUS boards under Linux. On Windows SMBus
+            // needs a kernel driver, and current ASUS boards use the USB Aura
+            // controller instead, so this would just be noise.
+            if asus_board && cfg!(target_os = "linux") {
                 warnings.push(e);
+            } else {
+                log::debug!("Aura SMBus unavailable: {e}");
             }
             return (controllers, warnings);
         }
