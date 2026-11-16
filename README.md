@@ -148,8 +148,8 @@
 <details>
 <summary><b>🔍 Ako aplikácia rozpoznáva zariadenia</b></summary>
 
-- **Logitech:** HID kanály `0xFF00` (myši, prijímače) a `0xFF43` (klávesnice G810/G910, slúchadlá). Funkcie zariadenia zisťuje cez HID++ (`0x8070`/`0x8071` svetlá, `0x1004`/`0x1000`/`0x1001`/`0x1F20` batéria). Ak zariadenie nepozná, vypíše do logu zoznam jeho funkcií.
-- **ASUS Aura USB:** ovládač `0B05:18F3/1939/19AF/1AA6/1BED`; LED a konektory číta z jeho konfiguračnej tabuľky.
+- **Logitech:** zóny (napr. G502: hlavná a logo; G733: hlavná a logo; G560: ľavý/pravý predný a zadný) hlási samo zariadenie cez HID++ `0x8070`/`0x8071`. HID kanály `0xFF00` (myši, prijímače) a `0xFF43` (klávesnice G810/G910, slúchadlá). Funkcie zariadenia zisťuje cez HID++ (`0x8070`/`0x8071` svetlá, `0x1004`/`0x1000`/`0x1001`/`0x1F20` batéria). Ak zariadenie nepozná, vypíše do logu zoznam jeho funkcií.
+- **ASUS Aura USB:** ovládač `0B05:18F3/1939/19AF/1AA6/1BED`; LED a konektory číta z jeho konfiguračnej tabuľky. Každá LED na doske, každý RGB aj ARGB konektor je samostatná zóna. Ovládač nehlási, kde na doske LED sú, preto sú očíslované (LED na doske 1, 2…).
 - **MSI GPU:** len karty s presnými PCI ID (`10DE:2882` + MSI `5160`/`5164`), adresa `0x68`, len dokumentované registre, pred prvým zápisom kontrolné čítanie, nikdy zápis do flash pamäte.
 - **ASUS SMBus:** len adresy `0x40`, `0x4E`, `0x4F`, len na doskách ASUS a len po overení odtlačku ENE čipu. RAM sa nikdy nedotýka.
 

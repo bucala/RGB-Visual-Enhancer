@@ -267,9 +267,11 @@ impl RgbController for AuraUsbController {
         layout.argb_headers = layout.argb_headers.min(max_argb);
         log::info!("Aura USB {fw}: {layout:?}");
 
+        // Every onboard LED is its own zone so each can be coloured
+        // separately; their slots come first, then the 12 V headers.
         let mut zones = Vec::new();
-        if layout.onboard > 0 {
-            zones.push(("Mainboard".to_string(), layout.onboard as u16));
+        for i in 0..layout.onboard {
+            zones.push((onboard_led_name(i), 1));
         }
         for i in 0..layout.rgb_headers {
             zones.push((format!("RGB Header {}", i + 1), 1));
@@ -322,24 +324,26 @@ impl RgbController for AuraUsbController {
     }
 
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {
-        let mut z = zone as usize;
-        if self.layout.onboard > 0 {
-            if z == 0 {
-                self.fixed[..self.layout.onboard as usize].fill(color);
-                return self.apply().await;
-            }
-            z -= 1;
-        }
-        let rgb = self.layout.rgb_headers as usize;
-        if z < rgb {
-            self.fixed[self.layout.onboard as usize + z] = color;
-        } else if let Some(slot) = self.argb.get_mut(z - rgb) {
-            *slot = color;
-        } else {
-            return Err(format!("zone {zone} out of range"));
-        }
+        *zone_slot(&mut self.fixed, &mut self.argb, zone)
+            .ok_or_else(|| format!("zone {zone} out of range"))? = color;
         self.apply().await
     }
+}
+
+/// Zones are ordered like the controller's colour slots: onboard LEDs and
+/// 12 V headers (`fixed`), then ARGB headers.
+fn zone_slot<'a>(fixed: &'a mut [Rgb], argb: &'a mut [Rgb], zone: u8) -> Option<&'a mut Rgb> {
+    let z = zone as usize;
+    if z < fixed.len() {
+        fixed.get_mut(z)
+    } else {
+        argb.get_mut(z - fixed.len())
+    }
+}
+
+/// The controller doesn't say where its onboard LEDs are, only how many.
+pub fn onboard_led_name(index: u8) -> String {
+    format!("Onboard LED {}", index + 1)
 }
 
 /// Finds Aura USB mainboard controllers.
@@ -498,6 +502,20 @@ mod tests {
         assert_eq!(&ps[1][..5], &[0xEC, 0x40, 0x01, 20, 20]);
         assert_eq!(&ps[2][..5], &[0xEC, 0x40, 0x81, 40, 5]);
         assert_eq!(&ps[2][5..8], &[9, 8, 7]);
+    }
+
+    #[test]
+    fn zones_map_to_colour_slots() {
+        // 2 onboard + 1 RGB header, 2 ARGB headers
+        let mut fixed = vec![Rgb::BLACK; 3];
+        let mut argb = vec![Rgb::BLACK; 2];
+        *zone_slot(&mut fixed, &mut argb, 1).unwrap() = Rgb::new(1, 0, 0);
+        *zone_slot(&mut fixed, &mut argb, 2).unwrap() = Rgb::new(2, 0, 0);
+        *zone_slot(&mut fixed, &mut argb, 4).unwrap() = Rgb::new(3, 0, 0);
+        assert!(zone_slot(&mut fixed, &mut argb, 5).is_none());
+        assert_eq!(fixed, [Rgb::BLACK, Rgb::new(1, 0, 0), Rgb::new(2, 0, 0)]);
+        assert_eq!(argb, [Rgb::BLACK, Rgb::new(3, 0, 0)]);
+        assert_eq!(onboard_led_name(0), "Onboard LED 1");
     }
 
     #[test]

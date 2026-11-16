@@ -71,6 +71,9 @@ const ZONES: [RegExp, Key][] = [
   [/^Right$/, "zoneName.right"],
   [/^Left Rear$/, "zoneName.leftRear"],
   [/^Right Rear$/, "zoneName.rightRear"],
+  [/^Left Front$/, "zoneName.leftFront"],
+  [/^Right Front$/, "zoneName.rightFront"],
+  [/^Onboard LED (\d+)$/, "zoneName.onboardLedN"],
 ];
 
 export function translateZone(name: string, t: TFn): string {

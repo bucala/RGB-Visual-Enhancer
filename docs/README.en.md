@@ -146,8 +146,8 @@ The full list of 171 models is in the app under **Device database**.
 <details>
 <summary><b>🔍 How devices are detected</b></summary>
 
-- **Logitech:** HID++ on usage pages `0xFF00` (mice, receivers) and `0xFF43` (G810/G910 keyboards, headsets). Features are discovered via HID++ (`0x8070`/`0x8071` lighting, `0x1004`/`0x1000`/`0x1001`/`0x1F20` battery). Unknown devices log their feature list.
-- **ASUS Aura USB:** controllers `0B05:18F3/1939/19AF/1AA6/1BED`; LEDs and headers come from the controller's config table.
+- **Logitech:** zones (e.g. G502: primary and logo; G733: primary and logo; G560: left/right front and rear) are reported by the device itself over HID++ `0x8070`/`0x8071`. HID++ on usage pages `0xFF00` (mice, receivers) and `0xFF43` (G810/G910 keyboards, headsets). Features are discovered via HID++ (`0x8070`/`0x8071` lighting, `0x1004`/`0x1000`/`0x1001`/`0x1F20` battery). Unknown devices log their feature list.
+- **ASUS Aura USB:** controllers `0B05:18F3/1939/19AF/1AA6/1BED`; LEDs and headers come from the controller's config table. Every onboard LED and every RGB/ARGB header is its own zone. The controller doesn't say where each LED sits on the board, so they are numbered (Board LED 1, 2…).
 - **MSI GPU:** only exact PCI ids (`10DE:2882` + MSI `5160`/`5164`), address `0x68`, documented registers only, a read before the first write, never the flash/save register.
 - **ASUS SMBus:** only addresses `0x40`, `0x4E`, `0x4F`, only on ASUS boards and only after the ENE fingerprint check. Memory modules are never touched.
 

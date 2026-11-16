@@ -107,7 +107,15 @@ impl VirtualController {
                 "Virtual ASUS Aura Motherboard",
                 "ASUS",
                 DeviceType::Motherboard,
-                &[("Onboard", 6), ("ARGB Header 1", 60), ("ARGB Header 2", 30)],
+                &[
+                    ("Onboard LED 1", 1),
+                    ("Onboard LED 2", 1),
+                    ("Onboard LED 3", 1),
+                    ("Onboard LED 4", 1),
+                    ("RGB Header 1", 1),
+                    ("ARGB Header 1", 60),
+                    ("ARGB Header 2", 30),
+                ],
                 &[Off, Static, Breathing, Flashing, SpectrumCycle, RainbowWave],
             ),
             VirtualController::new(
@@ -142,8 +150,8 @@ impl VirtualController {
                 "Logitech",
                 DeviceType::Speaker,
                 &[
-                    ("Left", 1),
-                    ("Right", 1),
+                    ("Left Front", 1),
+                    ("Right Front", 1),
                     ("Left Rear", 1),
                     ("Right Rear", 1),
                 ],

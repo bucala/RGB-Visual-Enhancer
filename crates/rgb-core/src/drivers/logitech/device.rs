@@ -263,7 +263,7 @@ impl LogitechController {
             }
             zones.push(LightingZone {
                 index: z,
-                name: hidpp::zone_location_name(location, z),
+                name: hidpp::zone_name_for(self.info.device_type, location, z),
                 effects,
             });
         }
@@ -470,9 +470,14 @@ struct Candidate {
     serial: Option<String>,
 }
 
-fn guess_type(product: &str) -> DeviceType {
+/// Logitech G560 LIGHTSYNC speakers.
+pub const G560_PID: u16 = 0x0A78;
+
+fn guess_type(pid: u16, product: &str) -> DeviceType {
     let p = product.to_ascii_lowercase();
-    if p.contains("keyboard") {
+    if pid == G560_PID {
+        DeviceType::Speaker
+    } else if p.contains("keyboard") {
         DeviceType::Keyboard
     } else if p.contains("mouse") {
         DeviceType::Mouse
@@ -590,7 +595,7 @@ fn detect_blocking(
                 id: format!("{prefix}{index:02x}"),
                 name: c.product.clone(),
                 vendor: "Logitech".into(),
-                device_type: guess_type(&c.product),
+                device_type: guess_type(c.pid, &c.product),
                 transport: Transport::Usb,
                 location: if index == hidpp::DEVICE_INDEX_WIRED {
                     c.path_display.clone()

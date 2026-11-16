@@ -67,7 +67,8 @@ const { Off, Static, Breathing, SpectrumCycle, RainbowWave, ColorPulse, Flashing
 function demoDevices(): Device[] {
   return [
     device("aura-mobo", "Virtual ASUS Aura Motherboard", "ASUS", "motherboard",
-      [["Onboard", 6], ["ARGB Header 1", 60], ["ARGB Header 2", 30]],
+      [["Onboard LED 1", 1], ["Onboard LED 2", 1], ["Onboard LED 3", 1], ["Onboard LED 4", 1],
+       ["RGB Header 1", 1], ["ARGB Header 1", 60], ["ARGB Header 2", 30]],
       [Off, Static, Breathing, Flashing, SpectrumCycle, RainbowWave]),
     withLayout(device("g-keyboard", "Virtual Logitech G Keyboard", "Logitech", "keyboard",
       [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle, ColorPulse]), "logitech-g910"),
@@ -76,7 +77,7 @@ function demoDevices(): Device[] {
     withBattery(device("g-headset", "Virtual Logitech G Headset", "Logitech", "headset",
       [["Logo", 1], ["Strip", 1]], [Off, Static, Breathing, SpectrumCycle]), 64, false),
     device("g-speakers", "Virtual Logitech G Speakers", "Logitech", "speaker",
-      [["Left", 1], ["Right", 1], ["Left Rear", 1], ["Right Rear", 1]],
+      [["Left Front", 1], ["Right Front", 1], ["Left Rear", 1], ["Right Rear", 1]],
       [Off, Static, Breathing, SpectrumCycle]),
     withBattery(device("ble-strip", "Virtual BLE LED Strip", "ESP32", "led_strip",
       [["Strip", 120]], [Off, Static, Breathing, SpectrumCycle, RainbowWave, Flashing], "ble"), 87, true),

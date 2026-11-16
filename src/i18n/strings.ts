@@ -143,6 +143,9 @@ export const en = {
   "zoneName.right": "Right",
   "zoneName.leftRear": "Left rear",
   "zoneName.rightRear": "Right rear",
+  "zoneName.leftFront": "Left front",
+  "zoneName.rightFront": "Right front",
+  "zoneName.onboardLedN": "Board LED {n}",
 
   "kb.title": "Keys",
   "kb.hint": "Click or drag across keys to paint them with the selected colour. Right-click a key for more options.",
@@ -365,6 +368,9 @@ export const sk: Record<Key, string> = {
   "zoneName.right": "Pravý",
   "zoneName.leftRear": "Ľavý zadný",
   "zoneName.rightRear": "Pravý zadný",
+  "zoneName.leftFront": "Ľavý predný",
+  "zoneName.rightFront": "Pravý predný",
+  "zoneName.onboardLedN": "LED na doske {n}",
 
   "kb.title": "Klávesy",
   "kb.hint": "Kliknutím alebo ťahaním po klávesoch ich nafarbíte vybranou farbou. Pravým tlačidlom na klávese sú ďalšie možnosti.",
