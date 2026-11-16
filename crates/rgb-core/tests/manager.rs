@@ -169,6 +169,7 @@ fn info(id: &str) -> DeviceInfo {
         firmware: None,
         zones: vec![],
         effects: vec![EffectId::Static.info()],
+        layout: None,
     }
 }
 
@@ -350,4 +351,36 @@ async fn battery_is_polled_and_marks_device_wireless() {
     assert!(strip.wireless && strip.battery.unwrap().charging);
     let mouse = manager.device("virtual:g-mouse").await.unwrap();
     assert!(mouse.battery.is_none() && !mouse.wireless);
+}
+
+#[tokio::test]
+async fn per_key_colours_merge_and_clear_on_whole_device_colour() {
+    let manager = virtual_manager();
+    manager.scan().await.unwrap();
+    let kb = "virtual:g-keyboard";
+    assert_eq!(
+        manager.device(kb).await.unwrap().info.layout.as_deref(),
+        Some("logitech-g910")
+    );
+
+    let red = Rgb::new(255, 0, 0);
+    let blue = Rgb::new(0, 0, 255);
+    let (a, b) = tokio::join!(
+        manager.set_key_colors(kb, vec![("k:1a".into(), red), ("k:04".into(), red)]),
+        manager.set_key_colors(kb, vec![("k:04".into(), blue)]),
+    );
+    a.unwrap();
+    b.unwrap();
+    let keys = manager.device(kb).await.unwrap().keys;
+    assert_eq!(keys.get("k:1a"), Some(&red));
+    assert_eq!(keys.get("k:04"), Some(&blue), "later stroke wins");
+
+    manager.set_color(kb, Rgb::WHITE).await.unwrap();
+    assert!(manager.device(kb).await.unwrap().keys.is_empty());
+
+    let err = manager
+        .set_key_colors("virtual:g-mouse", vec![("k:04".into(), red)])
+        .await
+        .unwrap_err();
+    assert!(err.contains("not supported"), "{err}");
 }

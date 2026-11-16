@@ -101,7 +101,7 @@ export function DeviceList({ devices, selectedId, onSelect, scanning, onColor, o
                       />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium">{d.name}</span>
+                      <span dir="auto" className="block truncate rtl:text-right text-[13px] font-medium">{d.name}</span>
                       <span className="flex items-center gap-1 text-[11px] text-muted">
                         <TransportIcon size={11} />
                         {d.vendor}

@@ -59,6 +59,10 @@ export interface Device {
   speed: number;
   battery: BatteryInfo | null;
   wireless: boolean;
+  /** Per-key layout id (e.g. "logitech-g910") when keys can be lit individually. */
+  layout: string | null;
+  /** Per-key colours last applied, by key id (`k:XX`, `g:N`, `logo`). */
+  keys: Record<string, Rgb>;
 }
 
 export interface ScanSummary {
@@ -88,13 +92,19 @@ export interface SystemInfo {
   cpu: string | null;
 }
 
-export type Lang = "sk" | "en";
+export const LANGS = [
+  "sk", "en", "cs", "hu", "es-ES", "es-419", "zh-Hans", "zh-Hant", "de", "fr", "ja", "pt-BR", "pt-PT",
+  "ko", "ar", "hi", "it", "id", "vi", "th", "tr", "pl", "uk", "nl", "sv",
+] as const;
+export type Lang = (typeof LANGS)[number];
 
 export interface Settings {
   virtual_devices: boolean;
   language: Lang;
   /** Windows/macOS use the app-styled tray menu window. */
   custom_tray_menu: boolean;
+  /** Where the log file is written (desktop app only). */
+  log_file?: string | null;
 }
 
 export interface DeviceFailure {
@@ -112,3 +122,39 @@ export const EffectIds = {
   ColorPulse: 5,
   Flashing: 6,
 } as const;
+
+export interface Profile {
+  id: string;
+  name: string;
+  /** Executable names that activate this profile automatically. */
+  games: string[];
+  /** Colour applied to every device first. */
+  color: Rgb | null;
+  /** Per-key colours for keyboards with a layout. */
+  keys: Record<string, Rgb>;
+}
+
+export interface ActiveProfile {
+  id: string | null;
+  game: string | null;
+}
+
+export interface ProfilesView {
+  profiles: Profile[];
+  default_profile: string | null;
+  auto_switch: boolean;
+  active: ActiveProfile;
+}
+
+export type Support = "verified" | "supported" | "experimental" | "planned";
+
+export interface KnownDevice {
+  vendor: string;
+  name: string;
+  kind: DeviceType;
+  bus: "usb" | "pci" | "smbus" | "ble";
+  ids: string;
+  match_key: string;
+  support: Support;
+  note: string | null;
+}

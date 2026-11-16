@@ -7,11 +7,12 @@ use rgb_core::drivers::virtual_device::VIRTUAL_ID_PREFIX;
 use rgb_core::system::SystemInfo;
 use rgb_core::{DeviceSnapshot, Rgb, ScanSummary};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use tauri_plugin_autostart::ManagerExt as _;
 
-use crate::settings::{Language, SettingsStore};
-use crate::{tray, AppState, SETTINGS_CHANNEL};
+use crate::profiles::{self, ActiveProfile, ProfileState};
+use crate::settings::{Language, Profile, SettingsStore};
+use crate::{tray, AppState, LogPath, SETTINGS_CHANNEL};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -95,14 +96,23 @@ pub struct Settings {
     language: Language,
     /// Whether the tray uses the app-styled webview menu (Windows/macOS).
     custom_tray_menu: bool,
+    /// Location of the log file, if logging to a file works.
+    log_file: Option<String>,
 }
 
 #[tauri::command]
-pub fn get_settings(state: State<'_, AppState>, settings: State<'_, SettingsStore>) -> Settings {
+pub fn get_settings<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    settings: State<'_, SettingsStore>,
+) -> Settings {
     Settings {
         virtual_devices: state.virtual_devices.load(Ordering::SeqCst),
         language: settings.language(),
         custom_tray_menu: tray::uses_custom_menu(),
+        log_file: app
+            .try_state::<LogPath>()
+            .and_then(|p| p.0.as_ref().map(|p| p.display().to_string())),
     }
 }
 
@@ -170,4 +180,116 @@ pub async fn set_virtual_devices(state: State<'_, AppState>, enabled: bool) -> C
             .await;
         Ok(())
     }
+}
+
+#[tauri::command]
+pub async fn set_key_colors(
+    state: State<'_, AppState>,
+    device_id: String,
+    keys: Vec<(String, Rgb)>,
+) -> CmdResult<()> {
+    state.manager.set_key_colors(&device_id, keys).await
+}
+
+#[tauri::command]
+pub fn set_tray_tooltip<R: Runtime>(app: AppHandle<R>, text: String) {
+    tray::set_tooltip(&app, text);
+}
+
+#[derive(Serialize)]
+pub struct ProfilesView {
+    profiles: Vec<Profile>,
+    default_profile: Option<String>,
+    auto_switch: bool,
+    active: ActiveProfile,
+}
+
+#[tauri::command]
+pub fn get_profiles(
+    settings: State<'_, SettingsStore>,
+    active: State<'_, ProfileState>,
+) -> ProfilesView {
+    let s = settings.get();
+    ProfilesView {
+        profiles: s.profiles,
+        default_profile: s.default_profile,
+        auto_switch: s.auto_switch,
+        active: active.active.lock().expect("profile state").clone(),
+    }
+}
+
+/// Insert or replace (by id) a profile.
+#[tauri::command]
+pub fn save_profile(settings: State<'_, SettingsStore>, profile: Profile) -> CmdResult<()> {
+    if profile.id.trim().is_empty() || profile.name.trim().is_empty() {
+        return Err("profile needs an id and a name".into());
+    }
+    settings
+        .update(
+            |s| match s.profiles.iter_mut().find(|p| p.id == profile.id) {
+                Some(existing) => *existing = profile,
+                None => s.profiles.push(profile),
+            },
+        )
+        .map(|_| ())
+}
+
+#[tauri::command]
+pub fn delete_profile(settings: State<'_, SettingsStore>, id: String) -> CmdResult<()> {
+    settings
+        .update(|s| {
+            s.profiles.retain(|p| p.id != id);
+            if s.default_profile.as_deref() == Some(&id) {
+                s.default_profile = None;
+            }
+        })
+        .map(|_| ())
+}
+
+#[tauri::command]
+pub async fn apply_profile<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    settings: State<'_, SettingsStore>,
+    id: String,
+) -> CmdResult<()> {
+    let profile = settings
+        .get()
+        .profiles
+        .into_iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("unknown profile '{id}'"))?;
+    profiles::apply_and_announce(&app, &state.manager, &profile, None).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_default_profile(
+    settings: State<'_, SettingsStore>,
+    id: Option<String>,
+) -> CmdResult<()> {
+    settings.update(|s| s.default_profile = id).map(|_| ())
+}
+
+#[tauri::command]
+pub fn set_auto_switch(settings: State<'_, SettingsStore>, enabled: bool) -> CmdResult<()> {
+    settings.update(|s| s.auto_switch = enabled).map(|_| ())
+}
+
+/// Executable names of running processes (to pick a game for a profile).
+#[tauri::command]
+pub async fn running_processes() -> CmdResult<Vec<String>> {
+    let mut list: Vec<String> = tokio::task::spawn_blocking(profiles::running_processes)
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .collect();
+    list.sort();
+    Ok(list)
+}
+
+/// The known-device database (static data).
+#[tauri::command]
+pub fn get_device_database() -> &'static [rgb_core::database::KnownDevice] {
+    rgb_core::database::DEVICES
 }

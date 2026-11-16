@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use hidapi::{HidApi, HidDevice};
 
 use super::hidpp::{self, effect, LightingFeature, Request, Response, PARAMS_LONG};
-use super::{is_long_report_collection, HIDPP_USAGE_PAGES, LOGITECH_VID};
+use super::perkey;
+use super::{
+    is_long_report_collection, is_very_long_report_collection, HIDPP_USAGE_PAGES, LOGITECH_VID,
+};
 use crate::controller::{DetectionReport, DeviceDetector, RgbController, RgbResult};
 use crate::drivers::hid::SharedHidApi;
 use crate::types::{scale_speed, DeviceInfo, DeviceType, EffectId, Rgb, Transport, ZoneInfo};
@@ -20,10 +23,36 @@ const RECEIVER_SLOTS: std::ops::RangeInclusive<u8> = 1..=6;
 /// hosts multiple paired devices; the mutex serialises request/response pairs.
 pub struct HidppChannel {
     device: Mutex<HidDevice>,
+    /// Separate handle for 64-byte reports (Windows exposes each top-level
+    /// collection as its own device; on Linux the main handle does both).
+    very_long: Option<Mutex<HidDevice>>,
     path: String,
 }
 
 impl HidppChannel {
+    /// Fire-and-forget raw reports (per-key frames), then discard whatever
+    /// the device answered so it can't confuse later request/response pairs.
+    fn write_reports_blocking(&self, reports: &[Vec<u8>]) -> RgbResult<()> {
+        let main = self.device.lock().map_err(|_| "HID channel poisoned")?;
+        let long = match &self.very_long {
+            Some(m) => Some(m.lock().map_err(|_| "HID channel poisoned")?),
+            None => None,
+        };
+        for report in reports {
+            let dev: &HidDevice = match (&long, report.first()) {
+                (Some(l), Some(&hidpp::REPORT_VERY_LONG)) => l,
+                _ => &main,
+            };
+            dev.write(report)
+                .map_err(|e| format!("HID write to {} failed: {e}", self.path))?;
+        }
+        let mut buf = [0u8; hidpp::LEN_VERY_LONG];
+        for dev in std::iter::once(&*main).chain(long.as_deref()) {
+            while dev.read_timeout(&mut buf, 5).unwrap_or(0) > 0 {}
+        }
+        Ok(())
+    }
+
     fn transact_blocking(&self, req: &Request, wait: Duration) -> RgbResult<[u8; PARAMS_LONG]> {
         let dev = self.device.lock().map_err(|_| "HID channel poisoned")?;
         dev.write(&req.encode())
@@ -96,6 +125,8 @@ pub struct LogitechController {
     battery: Option<(hidpp::BatteryFeature, u8)>,
     /// Active effect type and period, re-applied when the colour changes.
     active: (u16, u16),
+    /// G910-style per-key lighting is available.
+    per_key: bool,
 }
 
 fn unified_to_logitech(effect: EffectId) -> Option<u16> {
@@ -110,8 +141,9 @@ fn unified_to_logitech(effect: EffectId) -> Option<u16> {
 }
 
 impl LogitechController {
-    fn new(channel: Arc<HidppChannel>, device_index: u8, info: DeviceInfo) -> Self {
+    fn new(channel: Arc<HidppChannel>, device_index: u8, info: DeviceInfo, per_key: bool) -> Self {
         Self {
+            per_key,
             channel,
             device_index,
             info,
@@ -231,7 +263,7 @@ impl LogitechController {
             }
             zones.push(LightingZone {
                 index: z,
-                name: hidpp::zone_location_name(location, z),
+                name: hidpp::zone_name_for(self.info.device_type, location, z),
                 effects,
             });
         }
@@ -345,6 +377,9 @@ impl RgbController for LogitechController {
             .map(EffectId::info)
             .collect();
         self.lighting = Some(lighting);
+        if self.per_key {
+            self.info.layout = Some(perkey::LAYOUT_G910.into());
+        }
         Ok(())
     }
 
@@ -383,6 +418,24 @@ impl RgbController for LogitechController {
         kind.parse(&r)
     }
 
+    async fn set_key_colors(&mut self, keys: &[(String, Rgb)]) -> RgbResult<()> {
+        if !self.per_key {
+            return Err("per-key lighting is not supported by this device".into());
+        }
+        let parsed: Vec<(perkey::Key, Rgb)> = keys
+            .iter()
+            .filter_map(|(id, c)| perkey::Key::parse(id).map(|k| (k, *c)))
+            .collect();
+        let reports = perkey::g910_reports(&parsed);
+        if reports.is_empty() {
+            return Ok(());
+        }
+        let channel = self.channel.clone();
+        tokio::task::spawn_blocking(move || channel.write_reports_blocking(&reports))
+            .await
+            .map_err(|e| format!("HID worker panicked: {e}"))?
+    }
+
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {
         let lighting = self.lighting.as_ref().ok_or("lighting not initialised")?;
         let z = lighting
@@ -408,6 +461,8 @@ impl LogitechDetector {
 
 struct Candidate {
     path: CString,
+    /// Windows: sibling 64-byte collection of the same interface.
+    very_long_path: Option<CString>,
     path_display: String,
     pid: u16,
     key: String,
@@ -415,9 +470,14 @@ struct Candidate {
     serial: Option<String>,
 }
 
-fn guess_type(product: &str) -> DeviceType {
+/// Logitech G560 LIGHTSYNC speakers.
+pub const G560_PID: u16 = 0x0A78;
+
+fn guess_type(pid: u16, product: &str) -> DeviceType {
     let p = product.to_ascii_lowercase();
-    if p.contains("keyboard") {
+    if pid == G560_PID {
+        DeviceType::Speaker
+    } else if p.contains("keyboard") {
         DeviceType::Keyboard
     } else if p.contains("mouse") {
         DeviceType::Mouse
@@ -441,6 +501,14 @@ fn detect_blocking(
     // collection is its own path, so pick the long-report one; on Linux all
     // usages share a hidraw node and dedupe by path.
     let mut candidates: BTreeMap<String, Candidate> = BTreeMap::new();
+    let very_long: BTreeMap<(u16, i32), CString> = api
+        .device_list()
+        .filter(|d| {
+            d.vendor_id() == LOGITECH_VID
+                && is_very_long_report_collection(d.usage_page(), d.usage())
+        })
+        .map(|d| ((d.product_id(), d.interface_number()), d.path().to_owned()))
+        .collect();
     for d in api.device_list() {
         if d.vendor_id() != LOGITECH_VID || !HIDPP_USAGE_PAGES.contains(&d.usage_page()) {
             continue;
@@ -456,6 +524,13 @@ fn detect_blocking(
         let key = serial.clone().unwrap_or_else(|| path_display.clone());
         candidates.entry(path_display.clone()).or_insert(Candidate {
             path: d.path().to_owned(),
+            very_long_path: if cfg!(windows) {
+                very_long
+                    .get(&(d.product_id(), d.interface_number()))
+                    .cloned()
+            } else {
+                None
+            },
             path_display,
             pid: d.product_id(),
             key,
@@ -484,8 +559,19 @@ fn detect_blocking(
                 continue;
             }
         };
+        let very_long_dev = c
+            .very_long_path
+            .as_ref()
+            .and_then(|p| match api.open_path(p) {
+                Ok(d) => Some(Mutex::new(d)),
+                Err(e) => {
+                    log::warn!("{}: cannot open 64-byte HID collection: {e}", c.product);
+                    None
+                }
+            });
         let channel = Arc::new(HidppChannel {
             device: Mutex::new(device),
+            very_long: very_long_dev,
             path: c.path_display.clone(),
         });
 
@@ -509,7 +595,7 @@ fn detect_blocking(
                 id: format!("{prefix}{index:02x}"),
                 name: c.product.clone(),
                 vendor: "Logitech".into(),
-                device_type: guess_type(&c.product),
+                device_type: guess_type(c.pid, &c.product),
                 transport: Transport::Usb,
                 location: if index == hidpp::DEVICE_INDEX_WIRED {
                     c.path_display.clone()
@@ -520,11 +606,14 @@ fn detect_blocking(
                 firmware: None,
                 zones: Vec::new(),
                 effects: Vec::new(),
+                layout: None,
             };
+            let per_key = index == hidpp::DEVICE_INDEX_WIRED && perkey::G910_PIDS.contains(&c.pid);
             controllers.push(Box::new(LogitechController::new(
                 channel.clone(),
                 index,
                 info,
+                per_key,
             )));
         }
     }

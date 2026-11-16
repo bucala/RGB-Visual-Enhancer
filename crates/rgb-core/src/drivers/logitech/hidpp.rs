@@ -287,6 +287,21 @@ pub fn effect_params(effect_type: u16, color: (u8, u8, u8), period_ms: u16) -> [
 }
 
 pub fn zone_location_name(location: u16, index: u8) -> String {
+    zone_name_for(crate::types::DeviceType::Unknown, location, index)
+}
+
+/// Zone name for a `0x8070`/`0x8071` location code. Speakers (G560) reuse
+/// the codes for their four light positions.
+pub fn zone_name_for(kind: crate::types::DeviceType, location: u16, index: u8) -> String {
+    if kind == crate::types::DeviceType::Speaker {
+        match location {
+            0x0001 => return "Left Front".into(),
+            0x0002 => return "Right Front".into(),
+            0x0003 => return "Left Rear".into(),
+            0x0004 => return "Right Rear".into(),
+            _ => {}
+        }
+    }
     match location {
         0x0001 => "Primary".into(),
         0x0002 => "Logo".into(),
@@ -457,6 +472,17 @@ mod tests {
         assert_eq!(voltage_to_percent(3811), 50);
         assert_eq!(voltage_to_percent(3835), 55);
         assert_eq!(voltage_to_percent(3400), 0);
+    }
+
+    #[test]
+    fn zone_names_depend_on_device_kind() {
+        use crate::types::DeviceType;
+        assert_eq!(zone_name_for(DeviceType::Mouse, 1, 0), "Primary");
+        assert_eq!(zone_name_for(DeviceType::Mouse, 2, 1), "Logo");
+        assert_eq!(zone_name_for(DeviceType::Speaker, 1, 0), "Left Front");
+        assert_eq!(zone_name_for(DeviceType::Speaker, 4, 3), "Right Rear");
+        assert_eq!(zone_name_for(DeviceType::Speaker, 0, 2), "Zone 3");
+        assert_eq!(zone_location_name(7, 0), "Primary 2");
     }
 
     #[test]

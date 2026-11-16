@@ -71,6 +71,9 @@ pub struct DeviceSnapshot {
     pub battery: Option<BatteryInfo>,
     /// Bluetooth, or a device that has reported a battery (LIGHTSPEED etc.).
     pub wireless: bool,
+    /// Per-key colours last applied (keyboards with a layout). Cleared when
+    /// a whole-device colour or effect is applied.
+    pub keys: BTreeMap<String, Rgb>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -107,6 +110,10 @@ enum Command {
     SetEffect {
         effect: u8,
         speed: u8,
+        reply: oneshot::Sender<RgbResult<()>>,
+    },
+    SetKeys {
+        keys: Vec<(String, Rgb)>,
         reply: oneshot::Sender<RgbResult<()>>,
     },
     Shutdown {
@@ -295,6 +302,7 @@ impl DeviceManager {
             effect: None,
             speed: 50,
             battery: None,
+            keys: BTreeMap::new(),
         }));
         let (tx, rx) = mpsc::channel(self.inner.config.queue_depth);
         let task = tokio::spawn(run_worker(
@@ -352,6 +360,12 @@ impl DeviceManager {
             reply,
         })
         .await
+    }
+
+    /// Per-key colours (keyboards with a layout).
+    pub async fn set_key_colors(&self, id: &str, keys: Vec<(String, Rgb)>) -> RgbResult<()> {
+        self.send(id, |reply| Command::SetKeys { keys, reply })
+            .await
     }
 
     /// Apply a colour to many devices concurrently. Returns per-device errors.
@@ -477,6 +491,7 @@ async fn run_worker(
                 let result =
                     bounded(op_timeout, controller.set_color(color.r, color.g, color.b)).await;
                 finish(&snapshot, &events, &result, |s| {
+                    s.keys.clear();
                     s.color = Some(color);
                     let keeps_effect = s
                         .effect
@@ -506,10 +521,37 @@ async fn run_worker(
             } => {
                 let result = bounded(op_timeout, controller.set_effect(effect, speed)).await;
                 finish(&snapshot, &events, &result, |s| {
+                    s.keys.clear();
                     s.effect = Some(effect);
                     s.speed = speed.min(crate::types::SPEED_MAX);
                 });
                 let _ = reply.send(result);
+            }
+            Command::SetKeys { keys, reply } => {
+                // Coalesce consecutive per-key updates (brush strokes) into
+                // one frame; later colours for the same key win.
+                let mut merged: BTreeMap<String, Rgb> = keys.into_iter().collect();
+                let mut replies = vec![reply];
+                loop {
+                    match rx.try_recv() {
+                        Ok(Command::SetKeys { keys, reply: r }) => {
+                            merged.extend(keys);
+                            replies.push(r);
+                        }
+                        Ok(other) => {
+                            stashed = Some(other);
+                            break;
+                        }
+                        Err(_) => break,
+                    }
+                }
+                let list: Vec<(String, Rgb)> =
+                    merged.iter().map(|(k, c)| (k.clone(), *c)).collect();
+                let result = bounded(op_timeout, controller.set_key_colors(&list)).await;
+                finish(&snapshot, &events, &result, |s| s.keys.extend(merged));
+                for r in replies {
+                    let _ = r.send(result.clone());
+                }
             }
             Command::Shutdown { reply } => {
                 let result = bounded(op_timeout, controller.shutdown()).await;

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "check:locales": "node scripts/check-locales.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
