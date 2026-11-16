@@ -1,5 +1,5 @@
 import type { Backend } from "./backend";
-import type { Device, DeviceType, EffectInfo, ManagerEvent, Rgb, ZoneInfo } from "./types";
+import type { ActiveProfile, Device, DeviceType, EffectInfo, Lang, ManagerEvent, Profile, Rgb, ZoneInfo } from "./types";
 import { EffectIds } from "./types";
 
 const EFFECT_NAMES: Record<number, [string, boolean, boolean]> = {
@@ -49,7 +49,13 @@ function device(
     speed: 50,
     battery: null,
     wireless: transport === "ble",
+    layout: null,
+    keys: {},
   };
+}
+
+function withLayout(d: Device, layout: string): Device {
+  return { ...d, layout };
 }
 
 function withBattery(d: Device, percent: number, charging: boolean): Device {
@@ -63,8 +69,8 @@ function demoDevices(): Device[] {
     device("aura-mobo", "Virtual ASUS Aura Motherboard", "ASUS", "motherboard",
       [["Onboard", 6], ["ARGB Header 1", 60], ["ARGB Header 2", 30]],
       [Off, Static, Breathing, Flashing, SpectrumCycle, RainbowWave]),
-    device("g-keyboard", "Virtual Logitech G Keyboard", "Logitech", "keyboard",
-      [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle, ColorPulse]),
+    withLayout(device("g-keyboard", "Virtual Logitech G Keyboard", "Logitech", "keyboard",
+      [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle, ColorPulse]), "logitech-g910"),
     device("g-mouse", "Virtual Logitech G Mouse", "Logitech", "mouse",
       [["Primary", 1], ["Logo", 1]], [Off, Static, Breathing, SpectrumCycle]),
     withBattery(device("g-headset", "Virtual Logitech G Headset", "Logitech", "headset",
@@ -85,9 +91,14 @@ export function createDemoBackend(): Backend {
   const listeners = new Set<(e: ManagerEvent) => void>();
   let enabled = true;
   let scanning = false;
-  let language: "sk" | "en" = "sk";
+  let language: Lang = "sk";
   let autostart = false;
-  const settingsListeners = new Set<(s: { language: "sk" | "en" }) => void>();
+  const profiles: Profile[] = [];
+  let defaultProfile: string | null = null;
+  let autoSwitch = true;
+  let active: ActiveProfile = { id: null, game: null };
+  const profileListeners = new Set<(a: ActiveProfile) => void>();
+  const settingsListeners = new Set<(s: { language: Lang }) => void>();
   const emit = (e: ManagerEvent) => listeners.forEach((l) => l(structuredClone(e)));
 
   const update = (id: string, fn: (d: Device) => void) => {
@@ -100,6 +111,7 @@ export function createDemoBackend(): Backend {
 
   const backend: Backend = {
     kind: "demo",
+    window: null,
     async listDevices() {
       return structuredClone([...devices.values()]);
     },
@@ -141,6 +153,7 @@ export function createDemoBackend(): Backend {
     async setColor(id, color: Rgb) {
       await sleep(8);
       update(id, (d) => {
+        d.keys = {};
         d.color = color;
         const keeps = d.effects.find((e) => e.id === d.effect)?.uses_color ?? false;
         if (!keeps) d.effect = Static;
@@ -206,6 +219,54 @@ export function createDemoBackend(): Backend {
     },
     async onTrayOpened() {
       return () => {};
+    },
+    async setKeyColors(id, keys) {
+      await sleep(8);
+      const d = devices.get(id);
+      if (!d?.layout) throw "per-key lighting is not supported by this device";
+      update(id, (dev) => {
+        dev.keys = { ...dev.keys, ...Object.fromEntries(keys) };
+      });
+    },
+    async setTrayTooltip() {},
+    async getProfiles() {
+      return structuredClone({ profiles, default_profile: defaultProfile, auto_switch: autoSwitch, active });
+    },
+    async saveProfile(p) {
+      const i = profiles.findIndex((x) => x.id === p.id);
+      if (i >= 0) profiles[i] = structuredClone(p);
+      else profiles.push(structuredClone(p));
+    },
+    async deleteProfile(id) {
+      const i = profiles.findIndex((x) => x.id === id);
+      if (i >= 0) profiles.splice(i, 1);
+      if (defaultProfile === id) defaultProfile = null;
+    },
+    async applyProfile(id) {
+      const p = profiles.find((x) => x.id === id);
+      if (!p) throw `unknown profile '${id}'`;
+      if (p.color) await backend.setColorMany([...devices.keys()], p.color);
+      for (const d of devices.values()) {
+        if (d.layout && Object.keys(p.keys).length) await backend.setKeyColors(d.id, Object.entries(p.keys));
+      }
+      active = { id, game: null };
+      profileListeners.forEach((l) => l(active));
+    },
+    async setDefaultProfile(id) {
+      defaultProfile = id;
+    },
+    async setAutoSwitch(on) {
+      autoSwitch = on;
+    },
+    async runningProcesses() {
+      return ["chrome.exe", "cs2.exe", "discord.exe", "explorer.exe", "steam.exe"];
+    },
+    async onProfile(cb) {
+      profileListeners.add(cb);
+      return () => profileListeners.delete(cb);
+    },
+    async getDeviceDatabase() {
+      return (await import("./demoDatabase.json")).default as never;
     },
     async setVirtualDevices(on) {
       enabled = on;

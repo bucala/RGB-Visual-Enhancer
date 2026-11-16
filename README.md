@@ -24,6 +24,7 @@
   <a href="#-podporovaný-hardvér">Hardvér</a> ·
   <a href="#-inštalácia">Inštalácia</a> ·
   <a href="#-ovládanie">Ovládanie</a> ·
+  <a href="#-profily-a-hry">Profily</a> ·
   <a href="#-ako-to-funguje">Architektúra</a> ·
   <a href="#-pre-vývojárov">Vývoj</a>
 </p>
@@ -55,12 +56,32 @@
   </tr>
   <tr>
     <td valign="top">
-      <h3>🖱️ Desktopové ovládanie</h3>
-      Kontextové menu pravým tlačidlom tam, kde dáva zmysel (zariadenie, zóna, farba, log). Žiadne prehliadačové menu ani skratky.
+      <h3>⌨️ Každá klávesa zvlášť</h3>
+      Na klávesnici G910 nafarbíte klávesy kliknutím alebo ťahaním, vrátane G-kláves a loga. Herné šablóny FPS, MOBA, MMO, preteky, Minecraft, práca aj dúha.
     </td>
     <td valign="top">
-      <h3>🌍 Slovenčina aj angličtina</h3>
-      Predvolený jazyk je slovenčina, angličtinu zapnete v <b>Nastaveniach</b>. Inštalátory MSI aj EXE sú tiež v oboch jazykoch.
+      <h3>🎮 Profily pre hry</h3>
+      Uložte si nastavenie ako profil a priraďte k nemu hry (<code>cs2.exe</code>…). Keď hru spustíte, profil sa zapne sám; po jej ukončení sa vráti predvolený.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>📚 Databáza zariadení</h3>
+      171 známych modelov Logitech, ASUS, MSI a Bluetooth s ID a stavom podpory. Hľadanie, filtre a zvýraznenie pripojených zariadení.
+    </td>
+    <td valign="top">
+      <h3>🪟 Moderné okno</h3>
+      Bez klasickej lišty Windows: minimalizovanie, maximalizovanie a zatvorenie sú súčasťou dizajnu. Žiadne okná príkazového riadka, všetko beží v aplikácii a zapisuje sa do log súboru.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🖱️ Desktopové ovládanie</h3>
+      Kontextové menu pravým tlačidlom tam, kde dáva zmysel (zariadenie, zóna, klávesa, farba, log). Žiadne prehliadačové menu ani skratky.
+    </td>
+    <td valign="top">
+      <h3>🌍 25 jazykov</h3>
+      Slovenčina (predvolená), angličtina, čeština, maďarčina, nemčina, francúzština, španielčina, taliančina, portugalčina, poľština, ukrajinčina, japončina, čínština, kórejčina, arabčina (sprava doľava) a ďalšie. Jazyk zmeníte v <b>Nastaveniach</b>.
     </td>
   </tr>
 </table>
@@ -82,10 +103,29 @@
   </tr>
 </table>
 
+<p align="center">
+  <img src="docs/images/keyboard.png" alt="Editor jednotlivých kláves G910 so šablónou FPS" width="100%">
+</p>
+
+<table>
+  <tr>
+    <th>Profily s automatickým prepínaním</th>
+    <th>Databáza zariadení</th>
+  </tr>
+  <tr>
+    <td><img src="docs/images/profiles.png" alt="Zoznam profilov s hrami" width="100%"></td>
+    <td><img src="docs/images/database.png" alt="Databáza zariadení s filtrami" width="100%"></td>
+  </tr>
+</table>
+
 <details>
-<summary><b>🇬🇧 Anglické rozhranie</b> (kliknite pre zobrazenie)</summary>
+<summary><b>🌍 Iné jazyky</b>: angličtina, arabčina (RTL), japončina (kliknite pre zobrazenie)</summary>
 <br>
 <img src="docs/images/app-en.png" alt="Main window in English" width="100%">
+<br><br>
+<img src="docs/images/app-ar.png" alt="Hlavné okno v arabčine, rozloženie sprava doľava" width="100%">
+<br><br>
+<img src="docs/images/app-ja.png" alt="Hlavné okno v japončine" width="100%">
 </details>
 
 <sub>Snímky sú z ukážkového režimu s virtuálnymi zariadeniami.</sub>
@@ -95,10 +135,13 @@
 | Zariadenie | Spojenie | Stav |
 |---|---|---|
 | **Logitech G** myši, klávesnice, reproduktory, slúchadlá (napr. G502, G910, G733) | USB / LIGHTSPEED (HID++ 2.0) | ✅ G502 overená · 🟢 G910 a G733 rozpoznané |
+| **Logitech G910** jednotlivé klávesy, G-klávesy, logo | USB HID (64 B reporty) | 🧪 Experimentálne |
 | **ASUS Aura** dosky s USB ovládačom (AMD 500, Intel 400 a novšie, napr. ROG STRIX B550-F) | USB HID | 🟢 Rozpoznané na reálnom PC |
 | **MSI GeForce RTX 4060 GAMING X** | I²C cez NVIDIA NvAPI | 🟢 Rozpoznané na reálnom PC (len Windows) |
 | **ASUS Aura** staršie dosky s ENE čipom | SMBus | 🧪 Experimentálne (Linux) |
 | **Bluetooth LED pásiky**: ESP32 ([firmvér v repozitári](firmware/esp32-ble-rgb)), ELK-BLEDOM, Triones | Bluetooth LE | 🧪 Experimentálne |
+
+Úplný zoznam 171 modelov je v aplikácii na karte **Databáza zariadení**.
 
 > ✅ overené = farby a efekty potvrdené na skutočnom zariadení · 🟢 rozpoznané = aplikácia zariadenie na reálnom PC nájde a ovláda, potvrdenie všetkých efektov uvítame · 🧪 experimentálne = implementované podľa dokumentovaného protokolu, zatiaľ neodskúšané
 
@@ -160,7 +203,10 @@ Niektoré AMD dosky potrebujú parameter jadra `acpi_enforce_resources=lax`. Blu
 | Zóna | <kbd>Pravé tlačidlo</kbd> | Nafarbenie zóny vybranou alebo predvolenou farbou |
 | Predvolená farba | <kbd>Pravé tlačidlo</kbd> | Použiť na toto alebo na všetky zariadenia |
 | Log aktivity | <kbd>Pravé tlačidlo</kbd> | Kopírovať správu alebo celý log, vymazať log |
-| Okno | <kbd>✕</kbd> alebo minimalizovať | Aplikácia beží ďalej v lište |
+| Klávesa G910 | <kbd>Ľavé tlačidlo</kbd> / ťahanie | Nafarbí klávesy farbou štetca |
+| Klávesa G910 | <kbd>Pravé tlačidlo</kbd> | Vziať farbu klávesy, vypnúť klávesu, predvolené farby |
+| Hlavička okna | ťahanie / dvojklik | Presun okna / maximalizovanie |
+| Okno | <kbd>✕</kbd> alebo <kbd>–</kbd> v hlavičke | Aplikácia beží ďalej v lište |
 | Menu v lište | <kbd>Esc</kbd> alebo klik mimo | Zavrie menu |
 
 <details>
@@ -170,9 +216,19 @@ Niektoré AMD dosky potrebujú parameter jadra `acpi_enforce_resources=lax`. Blu
 - Pri slúchadlách G733 sa batéria počíta z napätia, preto je pred číslom `≈`.
 - Pri vypnutých slúchadlách sa batéria nezobrazí; po zapnutí sa objaví do minúty.
 - **Nastavenia → Virtuálne zariadenia** pridá simulovaný hardvér na vyskúšanie.
-- Aplikácia si zatiaľ nepamätá farby po reštarte PC.
+- Ak chcete farby po štarte PC, nastavte niektorý profil ako **predvolený** (hviezdička).
+- Log aplikácie nájdete v **Nastaveniach** (cesta k súboru `rgb-visual-enhancer.log`).
 
 </details>
+
+## 🎮 Profily a hry
+
+1. Nafarbite klávesnicu alebo zvoľte hernú šablónu, potom **Uložiť ako profil**.
+2. Do profilu pridajte hry: napíšte názov `.exe` alebo ho vyberte zo zoznamu bežiacich programov.
+3. Zapnite **Automaticky prepínať pre hry**. Aplikácia každé 3 sekundy pozrie zoznam procesov cez Windows API (žiadne pomocné programy ani okná) a zapne profil hry, ktorá beží.
+4. Profil s hviezdičkou je **predvolený**: použije sa pri štarte a keď nebeží žiadna hra.
+
+> ℹ️ Hry, ktoré si samy riadia svetlá cez Logitech LED SDK (napr. efekty pri streľbe), zatiaľ vyžadujú G HUB. Herné profily tejto aplikácie fungujú aj bez neho.
 
 ## 🧩 Ako to funguje
 
@@ -266,7 +322,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ```bash
-npm run build
+npm run check:locales && npm run build
 ```
 
 Testy nikdy nepristupujú k skutočnému hardvéru: protokoly sa testujú na presné bajty, ASUS ovládač na simulovanom čipe, manažér na virtuálnych zariadeniach a IPC rozhranie cez mock runtime Tauri.
@@ -288,12 +344,14 @@ Testy nikdy nepristupujú k skutočnému hardvéru: protokoly sa testujú na pre
 ```
 crates/rgb-core/          Rust jadro bez závislosti na UI
   src/manager.rs            DeviceManager: actor na zariadenie, udalosti, limity
-  src/drivers/logitech/     HID++ 2.0 (svetlá, batéria)
+  src/drivers/logitech/     HID++ 2.0 (svetlá, batéria), G910 jednotlivé klávesy
+  src/database.rs           Databáza známych zariadení
   src/drivers/asus_aura*    ASUS Aura (USB, SMBus)
   src/drivers/msi_gpu/      MSI GPU cez NvAPI I²C
   src/drivers/ble/          Bluetooth LE profily
-src-tauri/                Tauri: IPC, lišta, nastavenia, inštalátory
-src/                      React UI (preklady, menu v lište, kontextové menu)
+src-tauri/                Tauri: IPC, lišta, nastavenia, profily, inštalátory
+src/                      React UI (25 jazykov, editor kláves, profily, databáza)
+src/i18n/locales/         Preklady; kontrola: npm run check:locales
 firmware/esp32-ble-rgb/   Firmvér pre vlastný ESP32 LED ovládač
 docs/                     Architektúra, obrázky, anglické README
 ```

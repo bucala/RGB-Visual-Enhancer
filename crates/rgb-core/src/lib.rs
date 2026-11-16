@@ -13,6 +13,7 @@
 //! ```
 
 pub mod controller;
+pub mod database;
 pub mod drivers;
 pub mod manager;
 pub mod system;

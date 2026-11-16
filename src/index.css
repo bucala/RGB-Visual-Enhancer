@@ -9,7 +9,8 @@
   --color-text: #e6e9f0;
   --color-accent: #7c5cff;
   --color-accent-2: #22d3ee;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Latin first, then per-script system fonts (CJK, Thai, Devanagari, Arabic). */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Microsoft YaHei UI", "Microsoft JhengHei UI", "Yu Gothic UI", "Meiryo UI", "Malgun Gothic", "Leelawadee UI", "Nirmala UI", "Segoe UI Arabic", "Noto Sans", "Noto Sans CJK SC", "Noto Sans Thai", "Noto Sans Devanagari", "Noto Sans Arabic", sans-serif;
 }
 
 :root {

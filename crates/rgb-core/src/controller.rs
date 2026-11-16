@@ -47,6 +47,13 @@ pub trait RgbController: Send + Sync {
         self.set_color(color.r, color.g, color.b).await
     }
 
+    /// Per-key colours for keyboards that report a `layout` in their
+    /// [`DeviceInfo`]. Key ids: `k:XX` (hex HID usage), `g:N`, `logo`.
+    async fn set_key_colors(&mut self, keys: &[(String, Rgb)]) -> RgbResult<()> {
+        let _ = keys;
+        Err("per-key lighting is not supported by this device".into())
+    }
+
     /// Current battery state, for wireless devices. Polled periodically by
     /// the manager; `None` means no battery or the device is unreachable.
     async fn battery(&mut self) -> Option<BatteryInfo> {

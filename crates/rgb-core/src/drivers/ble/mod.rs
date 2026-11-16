@@ -255,6 +255,7 @@ impl DeviceDetector for BleDetector {
                     .iter()
                     .map(|e| e.info())
                     .collect(),
+                layout: None,
             };
             report.controllers.push(Box::new(BleController {
                 peripheral,

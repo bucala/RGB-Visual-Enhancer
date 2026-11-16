@@ -1,7 +1,30 @@
-import type { Device, DeviceFailure, Lang, ManagerEvent, Rgb, ScanSummary, Settings, SystemInfo } from "./types";
+import type {
+  ActiveProfile,
+  Device,
+  DeviceFailure,
+  KnownDevice,
+  Lang,
+  ManagerEvent,
+  Profile,
+  ProfilesView,
+  Rgb,
+  ScanSummary,
+  Settings,
+  SystemInfo,
+} from "./types";
+
+/** Controls for the frameless main window (absent in the browser demo). */
+export interface WindowControls {
+  minimize(): Promise<void>;
+  toggleMaximize(): Promise<void>;
+  close(): Promise<void>;
+  isMaximized(): Promise<boolean>;
+  onResized(cb: () => void): Promise<() => void>;
+}
 
 export interface Backend {
   readonly kind: "tauri" | "demo";
+  readonly window: WindowControls | null;
   listDevices(): Promise<Device[]>;
   scan(): Promise<ScanSummary>;
   isScanning(): Promise<boolean>;
@@ -23,6 +46,17 @@ export interface Backend {
   onSettings(cb: (s: { language: Lang }) => void): Promise<() => void>;
   /** The tray menu window was opened. */
   onTrayOpened(cb: () => void): Promise<() => void>;
+  setKeyColors(deviceId: string, keys: [string, Rgb][]): Promise<void>;
+  setTrayTooltip(text: string): Promise<void>;
+  getProfiles(): Promise<ProfilesView>;
+  saveProfile(profile: Profile): Promise<void>;
+  deleteProfile(id: string): Promise<void>;
+  applyProfile(id: string): Promise<void>;
+  setDefaultProfile(id: string | null): Promise<void>;
+  setAutoSwitch(enabled: boolean): Promise<void>;
+  runningProcesses(): Promise<string[]>;
+  onProfile(cb: (active: ActiveProfile) => void): Promise<() => void>;
+  getDeviceDatabase(): Promise<KnownDevice[]>;
   /** Subscribe to backend events. Resolves to an unsubscribe function. */
   onEvent(cb: (e: ManagerEvent) => void): Promise<() => void>;
   /** Called when events may have been dropped and state should be refetched. */
@@ -37,8 +71,18 @@ const TRAY_OPENED = "tray-menu://opened";
 async function createTauriBackend(): Promise<Backend> {
   const { invoke } = await import("@tauri-apps/api/core");
   const { listen } = await import("@tauri-apps/api/event");
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  const win = getCurrentWindow();
   return {
     kind: "tauri",
+    window: {
+      minimize: () => win.minimize(),
+      toggleMaximize: () => win.toggleMaximize(),
+      // Closing hides to the tray when one is available (handled in Rust).
+      close: () => win.close(),
+      isMaximized: () => win.isMaximized(),
+      onResized: (cb) => win.onResized(() => cb()),
+    },
     listDevices: () => invoke("list_devices"),
     scan: () => invoke("scan_devices"),
     isScanning: () => invoke("is_scanning"),
@@ -58,6 +102,17 @@ async function createTauriBackend(): Promise<Backend> {
     quit: () => invoke("quit_app"),
     onSettings: (cb) => listen<{ language: Lang }>(SETTINGS_CHANNEL, (e) => cb(e.payload)),
     onTrayOpened: (cb) => listen(TRAY_OPENED, () => cb()),
+    setKeyColors: (deviceId, keys) => invoke("set_key_colors", { deviceId, keys }),
+    setTrayTooltip: (text) => invoke("set_tray_tooltip", { text }),
+    getProfiles: () => invoke("get_profiles"),
+    saveProfile: (profile) => invoke("save_profile", { profile }),
+    deleteProfile: (id) => invoke("delete_profile", { id }),
+    applyProfile: (id) => invoke("apply_profile", { id }),
+    setDefaultProfile: (id) => invoke("set_default_profile", { id }),
+    setAutoSwitch: (enabled) => invoke("set_auto_switch", { enabled }),
+    runningProcesses: () => invoke("running_processes"),
+    onProfile: (cb) => listen<ActiveProfile>("rgb://profile", (e) => cb(e.payload)),
+    getDeviceDatabase: () => invoke("get_device_database"),
     onEvent: (cb) => listen<ManagerEvent>(EVENT_CHANNEL, (e) => cb(e.payload)),
     onResync: (cb) => listen(RESYNC_CHANNEL, () => cb()),
   };

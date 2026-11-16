@@ -79,7 +79,9 @@ pub struct Strings {
     effects: [&'static str; 7],
 }
 
-pub fn strings(lang: Language) -> &'static Strings {
+/// Native-menu strings: Slovak or English (other languages fall back to
+/// English; on Windows/macOS the webview menu is fully localized).
+pub fn strings(lang: &Language) -> &'static Strings {
     static SK: Strings = Strings {
         no_devices: "Nenašli sa žiadne zariadenia",
         devices: "zariadení",
@@ -153,9 +155,9 @@ pub fn strings(lang: Language) -> &'static Strings {
             "Flashing",
         ],
     };
-    match lang {
-        Language::Sk => &SK,
-        Language::En => &EN,
+    match lang.code() {
+        "sk" => &SK,
+        _ => &EN,
     }
 }
 
@@ -171,6 +173,17 @@ pub struct TrayState {
     /// When the custom menu last hid; clicking the icon right after the
     /// blur-hide should close it, not reopen it.
     last_hidden: Mutex<Option<Instant>>,
+    /// Localized tooltip supplied by the UI (any of the 25 languages).
+    tooltip: Mutex<Option<String>>,
+}
+
+/// Set the tray tooltip text (from the UI, already localized).
+pub fn set_tooltip<R: Runtime>(app: &AppHandle<R>, text: String) {
+    let text = truncate(&text, 127);
+    *app.state::<TrayState>().tooltip.lock().expect("tray state") = Some(text.clone());
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let _ = tray.set_tooltip(Some(text));
+    }
 }
 
 fn language<R: Runtime>(app: &AppHandle<R>) -> Language {
@@ -319,7 +332,7 @@ fn connection(d: &DeviceSnapshot, s: &Strings) -> &'static str {
         (Transport::Usb, true) => s.wireless_usb,
         (Transport::Usb, false) => "USB",
         (Transport::Smbus, _) => "SMBus",
-        (Transport::I2c, _) => "GPU I²C",
+        (Transport::I2c, _) => "GPU (I2C)",
         (Transport::Virtual, true) => s.simulated_wireless,
         (Transport::Virtual, false) => s.simulated,
     }
@@ -429,7 +442,7 @@ fn device_submenu<R: Runtime>(
 
 fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
-    lang: Language,
+    lang: &Language,
     devices: &[DeviceSnapshot],
 ) -> tauri::Result<Menu<R>> {
     let s = strings(lang);
@@ -467,7 +480,7 @@ fn build_menu<R: Runtime>(
         .build()
 }
 
-fn tooltip(lang: Language, devices: &[DeviceSnapshot]) -> String {
+fn tooltip(lang: &Language, devices: &[DeviceSnapshot]) -> String {
     let s = strings(lang);
     let mut t = format!("RGB Visual Enhancer · {} {}", devices.len(), s.devices);
     for d in devices.iter().filter(|d| d.battery.is_some()) {
@@ -486,7 +499,7 @@ pub async fn refresh<R: Runtime>(app: &AppHandle<R>, manager: &DeviceManager) {
         return;
     };
     if !uses_custom_menu() {
-        match build_menu(app, lang, &devices) {
+        match build_menu(app, &lang, &devices) {
             Ok(menu) => {
                 *app.state::<TrayState>()
                     .device_ids
@@ -497,7 +510,14 @@ pub async fn refresh<R: Runtime>(app: &AppHandle<R>, manager: &DeviceManager) {
             Err(e) => log::warn!("failed to build tray menu: {e}"),
         }
     }
-    let _ = tray.set_tooltip(Some(tooltip(lang, &devices)));
+    let text = app
+        .state::<TrayState>()
+        .tooltip
+        .lock()
+        .expect("tray state")
+        .clone()
+        .unwrap_or_else(|| tooltip(&lang, &devices));
+    let _ = tray.set_tooltip(Some(text));
 }
 
 pub fn toggle_autostart<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String> {
@@ -589,7 +609,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>, manager: DeviceManager) -> tauri::R
         create_menu_window(app)?;
     } else {
         builder = builder
-            .menu(&build_menu(app, language(app), &[])?)
+            .menu(&build_menu(app, &language(app), &[])?)
             .on_menu_event(on_menu_event);
     }
     if let Some(icon) = app.default_window_icon() {
@@ -684,7 +704,7 @@ mod tests {
         let devices = virtual_devices();
 
         let en = texts(
-            build_menu(app.handle(), Language::En, &devices)
+            build_menu(app.handle(), &Language::en(), &devices)
                 .unwrap()
                 .items()
                 .unwrap(),
@@ -697,7 +717,7 @@ mod tests {
         assert!(has(&en, "Quit RGB Visual Enhancer"));
 
         let sk = texts(
-            build_menu(app.handle(), Language::Sk, &devices)
+            build_menu(app.handle(), &Language::sk(), &devices)
                 .unwrap()
                 .items()
                 .unwrap(),
@@ -710,7 +730,7 @@ mod tests {
 
     #[test]
     fn tooltip_fits_windows_limit() {
-        assert!(tooltip(Language::Sk, &[]).chars().count() <= 127);
+        assert!(tooltip(&Language::sk(), &[]).chars().count() <= 127);
         assert_eq!(truncate("abcdef", 4), "abc…");
     }
 }

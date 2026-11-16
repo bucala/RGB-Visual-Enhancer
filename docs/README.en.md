@@ -24,6 +24,7 @@
   <a href="#-supported-hardware">Hardware</a> ·
   <a href="#-installation">Installation</a> ·
   <a href="#-controls">Controls</a> ·
+  <a href="#-profiles-and-games">Profiles</a> ·
   <a href="#-how-it-works">Architecture</a> ·
   <a href="#-for-developers">Development</a>
 </p>
@@ -55,12 +56,32 @@
   </tr>
   <tr>
     <td valign="top">
-      <h3>🖱️ Desktop-grade controls</h3>
-      Right-click menus where they help (device, zone, colour, log) and no browser menus or shortcuts.
+      <h3>⌨️ Every key on its own</h3>
+      Paint G910 keys by clicking or dragging, including the G-keys and logo. Game templates for FPS, MOBA, MMO, racing, Minecraft, work and rainbow.
     </td>
     <td valign="top">
-      <h3>🌍 Slovak and English</h3>
-      Slovak by default, English in <b>Settings</b>. The MSI and EXE installers come in both languages too.
+      <h3>🎮 Game profiles</h3>
+      Save a setup as a profile and attach games (<code>cs2.exe</code>…). The profile switches on when the game starts and the default comes back when it exits.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>📚 Device database</h3>
+      171 known Logitech, ASUS, MSI and Bluetooth models with ids and support status. Search, filters and connected devices highlighted.
+    </td>
+    <td valign="top">
+      <h3>🪟 Modern window</h3>
+      No classic Windows title bar: minimise, maximise and close are part of the design. No console windows; everything runs inside the app and goes to a log file.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🖱️ Desktop-grade controls</h3>
+      Right-click menus where they help (device, zone, key, colour, log) and no browser menus or shortcuts.
+    </td>
+    <td valign="top">
+      <h3>🌍 25 languages</h3>
+      Slovak (default), English, Czech, Hungarian, German, French, Spanish, Italian, Portuguese, Polish, Ukrainian, Japanese, Chinese, Korean, Arabic (right-to-left) and more. Change it in <b>Settings</b>.
     </td>
   </tr>
 </table>
@@ -82,17 +103,43 @@
   </tr>
 </table>
 
-<sub>Screenshots use the demo mode with virtual devices; the tray, context menu and settings are shown in Slovak, the default language.</sub>
+<p align="center">
+  <img src="images/keyboard.png" alt="G910 per-key editor with the FPS template" width="100%">
+</p>
+
+<table>
+  <tr>
+    <th>Profiles with automatic switching</th>
+    <th>Device database</th>
+  </tr>
+  <tr>
+    <td><img src="images/profiles.png" alt="Profile list with games" width="100%"></td>
+    <td><img src="images/database.png" alt="Device database with filters" width="100%"></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>🌍 Other languages</b>: Arabic (RTL), Japanese (click to show)</summary>
+<br>
+<img src="images/app-ar.png" alt="Main window in Arabic, right-to-left layout" width="100%">
+<br><br>
+<img src="images/app-ja.png" alt="Main window in Japanese" width="100%">
+</details>
+
+<sub>Screenshots use the demo mode with virtual devices; most are shown in Slovak, the default language.</sub>
 
 ## 💻 Supported hardware
 
 | Device | Connection | Status |
 |---|---|---|
 | **Logitech G** mice, keyboards, speakers, headsets (e.g. G502, G910, G733) | USB / LIGHTSPEED (HID++ 2.0) | ✅ G502 verified · 🟢 G910 and G733 detected |
+| **Logitech G910** per-key, G-keys, logo | USB HID (64-byte reports) | 🧪 Experimental |
 | **ASUS Aura** boards with the USB controller (AMD 500, Intel 400 and newer, e.g. ROG STRIX B550-F) | USB HID | 🟢 Detected on a real PC |
 | **MSI GeForce RTX 4060 GAMING X** | I²C via NVIDIA NvAPI | 🟢 Detected on a real PC (Windows only) |
 | **ASUS Aura** older boards with the ENE chip | SMBus | 🧪 Experimental (Linux) |
 | **Bluetooth LED strips**: ESP32 ([firmware included](../firmware/esp32-ble-rgb)), ELK-BLEDOM, Triones | Bluetooth LE | 🧪 Experimental |
+
+The full list of 171 models is in the app under **Device database**.
 
 > ✅ verified = colours and effects confirmed on real hardware · 🟢 detected = found and controlled on a real PC; confirmation of every effect welcome · 🧪 experimental = implemented from the documented protocol, not yet tried
 
@@ -154,7 +201,10 @@ Some AMD boards also need the kernel parameter `acpi_enforce_resources=lax`. Blu
 | Zone | <kbd>Right click</kbd> | Paint with the selected or a preset colour |
 | Preset colour | <kbd>Right click</kbd> | Apply to this device or to all devices |
 | Activity log | <kbd>Right click</kbd> | Copy message or whole log, clear log |
-| Window | <kbd>✕</kbd> or minimise | Keeps running in the tray |
+| G910 key | <kbd>Left click</kbd> / drag | Paints keys with the brush colour |
+| G910 key | <kbd>Right click</kbd> | Pick the key colour, turn the key off, preset colours |
+| Window header | drag / double click | Move the window / maximise |
+| Window | <kbd>✕</kbd> or <kbd>–</kbd> in the header | Keeps running in the tray |
 | Tray menu | <kbd>Esc</kbd> or click outside | Closes the menu |
 
 <details>
@@ -164,9 +214,19 @@ Some AMD boards also need the kernel parameter `acpi_enforce_resources=lax`. Blu
 - G733 battery is derived from voltage, hence the `≈`.
 - A switched-off headset shows no battery; it appears within a minute after switching on.
 - **Settings → Virtual devices** adds simulated hardware for trying things out.
-- Colours are not restored after a reboot yet.
+- To get colours back after a reboot, mark a profile as the **default** (star).
+- The app's log file path (`rgb-visual-enhancer.log`) is shown in **Settings**.
 
 </details>
+
+## 🎮 Profiles and games
+
+1. Paint the keyboard or pick a game template, then **Save as profile**.
+2. Add games to the profile: type the `.exe` name or pick it from the running programs.
+3. Turn on **Switch automatically for games**. Every 3 seconds the app reads the process list through the Windows API (no helper programs or windows) and applies the profile of the running game.
+4. The starred profile is the **default**: it is used at startup and whenever no game is running.
+
+> ℹ️ Games that drive the lights themselves through the Logitech LED SDK (e.g. muzzle-flash effects) still need G HUB. This app's game profiles work without it.
 
 ## 🧩 How it works
 
@@ -260,7 +320,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ```bash
-npm run build
+npm run check:locales && npm run build
 ```
 
 Tests never touch real hardware: protocols are checked byte-for-byte, the ASUS driver runs against a simulated chip, the manager against virtual devices, and the IPC surface through Tauri's mock runtime.

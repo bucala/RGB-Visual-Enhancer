@@ -431,6 +431,7 @@ fn detect_blocking(
                 firmware: None,
                 zones: Vec::new(),
                 effects: Vec::new(),
+                layout: None,
             },
         }));
     }

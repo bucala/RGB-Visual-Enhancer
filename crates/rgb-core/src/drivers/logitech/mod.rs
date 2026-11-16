@@ -3,6 +3,7 @@
 //! and devices paired to a LIGHTSPEED/Unifying receiver (indices 1–6).
 
 pub mod hidpp;
+pub mod perkey;
 
 #[cfg(feature = "hid")]
 mod device;
@@ -21,6 +22,11 @@ pub const HIDPP_USAGE_PAGES: [u16; 2] = [0xFF00, 0xFF43];
 /// short-report collection, `0x04` the 64-byte one.)
 pub fn is_long_report_collection(usage_page: u16, usage: u16) -> bool {
     HIDPP_USAGE_PAGES.contains(&usage_page) && usage & 0x00FF == 0x02
+}
+
+/// The 64-byte (`0x12`) collection used for per-key frames on G keyboards.
+pub fn is_very_long_report_collection(usage_page: u16, usage: u16) -> bool {
+    usage_page == 0xFF43 && usage & 0x00FF == 0x04
 }
 
 #[cfg(test)]

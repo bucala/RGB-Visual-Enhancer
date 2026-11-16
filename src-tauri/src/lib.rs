@@ -5,6 +5,8 @@
 //! back to the frontend through the [`EVENT_CHANNEL`] event.
 
 mod commands;
+mod logging;
+mod profiles;
 mod settings;
 mod tray;
 
@@ -24,6 +26,9 @@ pub const EVENT_CHANNEL: &str = "rgb://event";
 pub const RESYNC_CHANNEL: &str = "rgb://resync";
 /// Emitted to every window when persisted settings change (e.g. language).
 pub const SETTINGS_CHANNEL: &str = "rgb://settings";
+
+/// Where the log file lives (shown in Settings).
+pub struct LogPath(pub Option<std::path::PathBuf>);
 
 pub struct AppState {
     pub manager: DeviceManager,
@@ -55,12 +60,20 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync 
         commands::hide_tray_menu,
         commands::tray_menu_resize,
         commands::quit_app,
+        commands::set_key_colors,
+        commands::set_tray_tooltip,
+        commands::get_profiles,
+        commands::save_profile,
+        commands::delete_profile,
+        commands::apply_profile,
+        commands::set_default_profile,
+        commands::set_auto_switch,
+        commands::running_processes,
+        commands::get_device_database,
     ]
 }
 
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
     let virtual_devices = Arc::new(AtomicBool::new(env_flag("RGBVE_VIRTUAL_DEVICES")));
     let manager = DeviceManager::new(
         default_detectors(virtual_devices.clone()),
@@ -82,6 +95,7 @@ pub fn run() {
             virtual_devices,
         })
         .manage(tray::TrayState::default())
+        .manage(profiles::ProfileState::default())
         .on_window_event(|window, event| {
             // With a tray icon, closing or minimising hides to the tray (like
             // G HUB). Without one (e.g. no AppIndicator on Linux) the window
@@ -112,6 +126,15 @@ pub fn run() {
         })
         .invoke_handler(invoke_handler())
         .setup(move |app| {
+            let log_path = logging::init(app.path().app_log_dir().ok());
+            log::info!(
+                "RGB Visual Enhancer {} starting; log file: {}",
+                app.package_info().version,
+                log_path
+                    .as_deref()
+                    .map_or("unavailable".into(), |p| p.display().to_string())
+            );
+            app.manage(LogPath(log_path));
             let settings = match app.path().app_config_dir() {
                 Ok(dir) => settings::SettingsStore::load(dir.join("settings.json")),
                 Err(e) => {
@@ -151,6 +174,8 @@ pub fn run() {
                 }
                 Err(e) => log::warn!("system tray unavailable, closing will quit: {e}"),
             }
+
+            profiles::spawn_watcher(app.handle().clone(), manager.clone());
 
             // Initial hardware scan, off the UI thread.
             let scanner = manager.clone();
@@ -199,6 +224,7 @@ mod ipc_tests {
             })
             .manage(settings::SettingsStore::in_memory())
             .manage(tray::TrayState::default())
+            .manage(profiles::ProfileState::default())
             .plugin(tauri_plugin_autostart::init(
                 tauri_plugin_autostart::MacosLauncher::LaunchAgent,
                 None,
@@ -305,7 +331,45 @@ mod ipc_tests {
             call(&w, "get_settings", json!({})).unwrap()["language"],
             "en"
         );
-        assert!(call(&w, "set_language", json!({ "language": "de" })).is_err());
+        assert!(call(&w, "set_language", json!({ "language": "xx" })).is_err());
+        call(&w, "set_language", json!({ "language": "zh-Hant" })).unwrap();
+        assert_eq!(
+            call(&w, "get_settings", json!({})).unwrap()["language"],
+            "zh-Hant"
+        );
+
+        // Per-key colours and profiles.
+        let kb = "virtual:g-keyboard";
+        call(
+            &w,
+            "set_key_colors",
+            json!({ "deviceId": kb, "keys": [["k:1a", red], ["g:1", red]] }),
+        )
+        .unwrap();
+        let profile = json!({ "id": "fps", "name": "FPS", "games": ["cs2.exe"], "color": null, "keys": { "k:04": red } });
+        call(&w, "save_profile", json!({ "profile": profile })).unwrap();
+        call(&w, "set_default_profile", json!({ "id": "fps" })).unwrap();
+        call(&w, "apply_profile", json!({ "id": "fps" })).unwrap();
+        let view = call(&w, "get_profiles", json!({})).unwrap();
+        assert_eq!(view["profiles"][0]["games"][0], "cs2.exe");
+        assert_eq!(view["default_profile"], "fps");
+        assert_eq!(view["active"]["id"], "fps");
+        assert!(call(&w, "running_processes", json!({}))
+            .unwrap()
+            .as_array()
+            .is_some());
+        call(&w, "delete_profile", json!({ "id": "fps" })).unwrap();
+        assert_eq!(
+            call(&w, "get_profiles", json!({})).unwrap()["default_profile"],
+            json!(null)
+        );
+        call(&w, "set_tray_tooltip", json!({ "text": "RGB" })).unwrap();
+        let db = call(&w, "get_device_database", json!({})).unwrap();
+        assert!(db
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["ids"] == "046D:C332" && d["support"] == "verified"));
         call(&w, "tray_menu_resize", json!({ "height": 300.0 })).unwrap();
         call(&w, "hide_tray_menu", json!({})).unwrap();
         call(&w, "set_virtual_devices", json!({ "enabled": false })).unwrap();

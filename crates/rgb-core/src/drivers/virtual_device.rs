@@ -22,6 +22,8 @@ pub struct VirtualController {
     pub zone_colors: Vec<Rgb>,
     pub effect: Option<(EffectId, u8)>,
     pub battery: Option<BatteryInfo>,
+    /// Per-key colours (virtual keyboards emulate a G910 layout).
+    pub keys: std::collections::BTreeMap<String, Rgb>,
     /// Number of hardware writes performed (lets tests observe coalescing).
     pub writes: Arc<std::sync::atomic::AtomicUsize>,
 }
@@ -55,6 +57,7 @@ impl VirtualController {
                     })
                     .collect(),
                 effects: effects.iter().map(|e| e.info()).collect(),
+                layout: None,
             },
             latency: Duration::from_millis(8),
             initialized: false,
@@ -62,8 +65,14 @@ impl VirtualController {
             zone_colors: vec![Rgb::BLACK; zones.len()],
             effect: None,
             battery: None,
+            keys: Default::default(),
             writes: Arc::default(),
         }
+    }
+
+    pub fn with_layout(mut self, layout: &str) -> Self {
+        self.info.layout = Some(layout.to_string());
+        self
     }
 
     pub fn with_battery(mut self, percent: u8, charging: bool) -> Self {
@@ -108,7 +117,8 @@ impl VirtualController {
                 DeviceType::Keyboard,
                 &[("Primary", 1), ("Logo", 1)],
                 &[Off, Static, Breathing, SpectrumCycle, ColorPulse],
-            ),
+            )
+            .with_layout(crate::drivers::logitech::perkey::LAYOUT_G910),
             VirtualController::new(
                 "g-mouse",
                 "Virtual Logitech G Mouse",
@@ -191,6 +201,15 @@ impl RgbController for VirtualController {
 
     async fn battery(&mut self) -> Option<BatteryInfo> {
         self.battery
+    }
+
+    async fn set_key_colors(&mut self, keys: &[(String, Rgb)]) -> RgbResult<()> {
+        if self.info.layout.is_none() {
+            return Err("per-key lighting is not supported by this device".into());
+        }
+        self.io().await?;
+        self.keys.extend(keys.iter().cloned());
+        Ok(())
     }
 
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {

@@ -179,6 +179,7 @@ fn detect_blocking(known: &HashSet<String>) -> DetectionReport {
                 firmware: None,
                 zones: Vec::new(),
                 effects: Vec::new(),
+                layout: None,
             },
         )));
     }
@@ -252,6 +253,7 @@ mod tests {
                 firmware: None,
                 zones: vec![],
                 effects: vec![],
+                layout: None,
             },
         );
         c.write_gap = Duration::ZERO;

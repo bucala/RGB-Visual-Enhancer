@@ -178,6 +178,10 @@ pub struct DeviceInfo {
     pub firmware: Option<String>,
     pub zones: Vec<ZoneInfo>,
     pub effects: Vec<EffectInfo>,
+    /// Physical key layout when the device supports per-key colours
+    /// (e.g. `"logitech-g910"`); `None` for zone-only devices.
+    #[serde(default)]
+    pub layout: Option<String>,
 }
 
 #[cfg(test)]

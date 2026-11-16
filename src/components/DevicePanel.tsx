@@ -6,12 +6,14 @@ import type { Device, Rgb } from "../lib/types";
 import { ColorPicker } from "./ColorPicker";
 import { DeviceIcon } from "./DeviceIcon";
 import { EffectPanel } from "./EffectPanel";
+import { KeyboardEditor } from "./KeyboardEditor";
+import type { Template } from "../lib/templates";
 import { Card, Chip } from "./ui";
 import { ZoneList } from "./ZoneList";
 
 const DEFAULT_COLOR: Rgb = { r: 124, g: 92, b: 255 };
 
-export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, onZoneColor, onEffect }: {
+export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, onZoneColor, onEffect, onKeys, onSaveProfile }: {
   device: Device;
   syncAll: boolean;
   syncCount: number;
@@ -19,6 +21,8 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, o
   onApplyAll: (c: Rgb) => void;
   onZoneColor: (zone: number, c: Rgb) => void;
   onEffect: (effect: number, speed: number) => void;
+  onKeys: (keys: [string, Rgb][]) => Promise<unknown>;
+  onSaveProfile: (keys: Record<string, Rgb>, template?: Template) => void;
 }) {
   const { t } = useI18n();
   // The picker owns the "draft" colour; hardware state follows asynchronously.
@@ -39,7 +43,7 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, o
           <DeviceIcon type={device.device_type} size={24} />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-lg font-semibold">{device.name}</h2>
+          <h2 dir="auto" className="truncate rtl:text-right text-lg font-semibold">{device.name}</h2>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Chip>{device.vendor}</Chip>
             <Chip>{connectionLabel(device, t)}</Chip>
@@ -82,13 +86,15 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, o
               value={color}
               onChange={(c) => {
                 setColor(c);
-                onColor(c);
+                // Per-key keyboards: the picker is the brush for the key editor.
+                if (!device.layout) onColor(c);
               }}
               onApplyAll={onApplyAll}
             />
           ) : (
             <p className="text-xs text-muted">{t("panel.noColour")}</p>
           )}
+          {device.layout && <p className="mt-3 text-[11px] text-muted">{t("kb.brushHint")}</p>}
           {canColor && !colorRelevant && activeEffect && (
             <p className="mt-3 text-[11px] text-muted">{t("panel.ignoresColour", { effect: t(effectKey(activeEffect.id)) })}</p>
           )}
@@ -98,6 +104,10 @@ export function DevicePanel({ device, syncAll, syncCount, onColor, onApplyAll, o
           <EffectPanel device={device} onEffect={onEffect} />
         </Card>
       </div>
+
+      {device.layout && (
+        <KeyboardEditor device={device} brush={color} onBrush={setColor} onSend={onKeys} onSaveProfile={onSaveProfile} />
+      )}
 
       <Card title={t("panel.zones", { n: device.zones.length })} icon={<Layers size={15} />}>
         <ZoneList device={device} color={color} onApply={onZoneColor} />
