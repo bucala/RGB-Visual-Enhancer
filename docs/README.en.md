@@ -216,6 +216,7 @@ Some AMD boards also need the kernel parameter `acpi_enforce_resources=lax`. Blu
 - **Settings → Virtual devices** adds simulated hardware for trying things out.
 - To get colours back after a reboot, mark a profile as the **default** (star).
 - The app's log file path (`rgb-visual-enhancer.log`) is shown in **Settings**.
+- The app never opens a console window. If one appears at startup, an old build is being launched (e.g. `target\debug\…exe`); starting the installed version re-points autostart to it.
 
 </details>
 

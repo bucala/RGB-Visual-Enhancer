@@ -218,6 +218,7 @@ Niektoré AMD dosky potrebujú parameter jadra `acpi_enforce_resources=lax`. Blu
 - **Nastavenia → Virtuálne zariadenia** pridá simulovaný hardvér na vyskúšanie.
 - Ak chcete farby po štarte PC, nastavte niektorý profil ako **predvolený** (hviezdička).
 - Log aplikácie nájdete v **Nastaveniach** (cesta k súboru `rgb-visual-enhancer.log`).
+- Aplikácia nikdy neotvára okno príkazového riadka. Ak sa pri štarte objaví, spúšťa sa stará zostava (napr. `target\debug\…exe`); po spustení nainštalovanej verzie sa automatické spúšťanie prepíše na ňu.
 
 </details>
 
