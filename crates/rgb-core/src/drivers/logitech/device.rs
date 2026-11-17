@@ -433,7 +433,24 @@ impl RgbController for LogitechController {
         let channel = self.channel.clone();
         tokio::task::spawn_blocking(move || channel.write_reports_blocking(&reports))
             .await
-            .map_err(|e| format!("HID worker panicked: {e}"))?
+            .map_err(|e| format!("HID worker panicked: {e}"))??;
+
+        // The G logo is also a HID++ lighting zone. A static effect left on
+        // that zone (by this app, G HUB or the keyboard's onboard mode) can
+        // keep the logo from following the per-key frame, so set the zone
+        // too — the same path that colours zones on the other devices.
+        if let Some((_, c)) = parsed.iter().rev().find(|(k, _)| *k == perkey::Key::Logo) {
+            if let Some(zone) = self
+                .lighting
+                .as_ref()
+                .and_then(|l| l.zones.iter().find(|z| z.name == "Logo"))
+            {
+                if let Err(e) = self.apply(zone, effect::STATIC, *c, 0).await {
+                    log::debug!("{}: logo zone: {e}", self.info.name);
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn set_zone_color(&mut self, zone: u8, color: Rgb) -> RgbResult<()> {

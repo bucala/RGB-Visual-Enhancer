@@ -2,7 +2,7 @@ import { Eraser, Keyboard, PaintBucket, Pipette, Power, Save, Sparkles } from "l
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { PRESETS, rgbCss } from "../lib/color";
-import { ALL_KEY_IDS, G910_GKEYS, G910_LOGO, G910_ROWS, ROW_UNITS, isKey, type KeyDef } from "../lib/keyboardLayout";
+import { ALL_KEY_IDS, G910_BADGE, G910_GKEYS, G910_LOGO, G910_ROWS, ROW_UNITS, isKey, type KeyDef } from "../lib/keyboardLayout";
 import { TEMPLATES, type Template } from "../lib/templates";
 import type { Device, Rgb } from "../lib/types";
 import { useContextMenu } from "./ContextMenu";
@@ -11,8 +11,9 @@ import { Card, Chip } from "./ui";
 const OFF: Rgb = { r: 0, g: 0, b: 0 };
 const LEFT = 1.4; // G-key column + gap, in key units
 const TOP = 1.4; // logo / G6–G9 strip + gap
+const BOTTOM = 1.25; // palm-rest badge strip below the keys
 const WIDTH = LEFT + ROW_UNITS;
-const HEIGHT = TOP + G910_ROWS.length;
+const HEIGHT = TOP + G910_ROWS.length + BOTTOM;
 
 interface Placed extends KeyDef {
   x: number;
@@ -35,6 +36,8 @@ function placeKeys(): Placed[] {
   G910_GKEYS.slice(0, 5).forEach((k, i) => out.push({ ...k, x: 0, y: TOP + 1 + i, w: 1 }));
   G910_GKEYS.slice(5).forEach((k, i) => out.push({ ...k, x: LEFT + 2 + i, y: 0, w: 1 }));
   out.push({ ...G910_LOGO, x: 0, y: 0, w: 1 });
+  // The "G910" badge sits on the palm rest, below Ctrl/Win/Alt.
+  out.push({ ...G910_BADGE, x: LEFT + 1.75, y: TOP + G910_ROWS.length + 0.25, w: 2.25 });
   return out;
 }
 

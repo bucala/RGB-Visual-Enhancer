@@ -1,5 +1,5 @@
 // Visual layout of the Logitech G910 (ISO, full size) with the key ids the
-// backend understands: `k:XX` = HID usage id, `g:N` = G-key, `logo`.
+// backend understands: `k:XX` = HID usage id, `g:N` = G-key, `logo`, `logo2` (palm-rest badge).
 
 export interface KeyDef {
   id: string;
@@ -59,12 +59,14 @@ export const G910_ROWS: RowItem[][] = [
 /** G-keys (column on the left on the G910). */
 export const G910_GKEYS: KeyDef[] = Array.from({ length: 9 }, (_, i) => ({ id: `g:${i + 1}`, label: `G${i + 1}` }));
 export const G910_LOGO: KeyDef = { id: "logo", label: "G" };
+/** Second logo LED (code 0x02), most likely the lit "G910" palm-rest badge. */
+export const G910_BADGE: KeyDef = { id: "logo2", label: "G910" };
 
 export function isKey(item: RowItem): item is KeyDef {
   return "id" in item;
 }
 
-export const ALL_KEYS: KeyDef[] = [...G910_ROWS.flat().filter(isKey), ...G910_GKEYS, G910_LOGO];
+export const ALL_KEYS: KeyDef[] = [...G910_ROWS.flat().filter(isKey), ...G910_GKEYS, G910_LOGO, G910_BADGE];
 export const ALL_KEY_IDS = ALL_KEYS.map((k) => k.id);
 
 /** Row width in units (all rows are padded to the same width). */
