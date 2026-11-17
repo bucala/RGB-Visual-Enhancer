@@ -13,7 +13,9 @@
 //! Main-key codes are standard HID keyboard usage ids (A = 0x04, …).
 //!
 //! Key ids used across the app: `k:XX` (hex HID usage), `g:N` (G1–G9),
-//! `logo`.
+//! `logo` (the G logo, code `0x01`) and `logo2` (the second logo LED,
+//! code `0x02`; g810-led sends both on the G910 but doesn't say where the
+//! second one sits — most likely the lit "G910" badge on the palm rest).
 
 use crate::types::Rgb;
 
@@ -36,12 +38,15 @@ pub enum Key {
     /// G-key 1–9.
     G(u8),
     Logo,
+    Logo2,
 }
 
 impl Key {
     pub fn parse(id: &str) -> Option<Key> {
-        if id == "logo" {
-            return Some(Key::Logo);
+        match id {
+            "logo" => return Some(Key::Logo),
+            "logo2" => return Some(Key::Logo2),
+            _ => {}
         }
         if let Some(n) = id.strip_prefix("g:") {
             let n: u8 = n.parse().ok()?;
@@ -56,6 +61,7 @@ impl Key {
             Key::Main(c) => format!("k:{c:02x}"),
             Key::G(n) => format!("g:{n}"),
             Key::Logo => "logo".into(),
+            Key::Logo2 => "logo2".into(),
         }
     }
 }
@@ -86,6 +92,7 @@ pub fn g910_reports(colors: &[(Key, Rgb)]) -> Vec<Vec<u8>> {
             Key::Main(code) if valid_main_code(code) => main.push((code, *c)),
             Key::G(n) if (1..=9).contains(&n) => gkeys.push((n, *c)),
             Key::Logo => logo.push((0x01, *c)),
+            Key::Logo2 => logo.push((0x02, *c)),
             _ => {}
         }
     }
@@ -117,6 +124,8 @@ mod tests {
         assert_eq!(Key::parse("k:e0"), Some(Key::Main(0xE0)));
         assert_eq!(Key::parse("g:9"), Some(Key::G(9)));
         assert_eq!(Key::parse("logo"), Some(Key::Logo));
+        assert_eq!(Key::parse("logo2"), Some(Key::Logo2));
+        assert_eq!(Key::Logo2.id(), "logo2");
         assert_eq!(Key::parse("g:10"), None);
         assert_eq!(Key::parse("k:02"), None, "not a key usage");
         assert_eq!(Key::parse("k:zz"), None);
@@ -151,6 +160,18 @@ mod tests {
             &[0x11, 0xFF, 0x0F, 0x3A, 0x00, 0x10, 0x00, 0x02, 0x01, 255, 255, 255]
         );
         assert_eq!(&r[2][..4], &COMMIT);
+    }
+
+    #[test]
+    fn both_logo_leds_share_one_packet() {
+        let r = g910_reports(&[
+            (Key::Logo, Rgb::new(1, 2, 3)),
+            (Key::Logo2, Rgb::new(4, 5, 6)),
+        ]);
+        assert_eq!(r.len(), 2);
+        assert_eq!(&r[0][..8], &LOGO_HEADER);
+        assert_eq!(&r[0][8..16], &[0x01, 1, 2, 3, 0x02, 4, 5, 6]);
+        assert_eq!(&r[1][..4], &COMMIT);
     }
 
     #[test]

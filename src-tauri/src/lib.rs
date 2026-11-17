@@ -73,6 +73,25 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync 
     ]
 }
 
+/// The autostart entry stores the path of the executable that enabled it.
+/// An entry left behind by an older or development build (e.g.
+/// `target\debug\…exe`, which had a console window) would keep starting that
+/// binary at login, so installed builds point an enabled entry back at
+/// themselves on every start.
+fn refresh_autostart<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri_plugin_autostart::ManagerExt as _;
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let launcher = app.autolaunch();
+    if launcher.is_enabled().unwrap_or(false) {
+        match launcher.enable() {
+            Ok(()) => log::info!("autostart entry refreshed for this executable"),
+            Err(e) => log::warn!("could not refresh autostart entry: {e}"),
+        }
+    }
+}
+
 pub fn run() {
     let virtual_devices = Arc::new(AtomicBool::new(env_flag("RGBVE_VIRTUAL_DEVICES")));
     let manager = DeviceManager::new(
@@ -135,6 +154,10 @@ pub fn run() {
                     .map_or("unavailable".into(), |p| p.display().to_string())
             );
             app.manage(LogPath(log_path));
+            if let Ok(exe) = std::env::current_exe() {
+                log::info!("executable: {}", exe.display());
+            }
+            refresh_autostart(app.handle());
             let settings = match app.path().app_config_dir() {
                 Ok(dir) => settings::SettingsStore::load(dir.join("settings.json")),
                 Err(e) => {

@@ -38,7 +38,7 @@ export const TEMPLATES: Template[] = [
         [[...range(0x1e, 0x22), code(0x2b), code(0x29)], hex("#ff9f00")],
         [[code(0x2c), code(0xe1), code(0xe0), code(0x15), code(0x08), code(0x14), code(0x09), code(0x0a)], hex("#ffffff")],
         [WASD, hex("#ff0030")],
-        [["logo"], hex("#ff0030")],
+        [["logo", "logo2"], hex("#ff0030")],
       ]),
   },
   {
@@ -50,7 +50,7 @@ export const TEMPLATES: Template[] = [
         [[...range(0x1e, 0x23), code(0x05), code(0x2b), code(0x2c)], hex("#7c5cff")],
         [[code(0x07), code(0x09)], hex("#ffc800")],
         [[0x14, 0x1a, 0x08, 0x15].map(code), hex("#00e5ff")],
-        [["logo"], hex("#00e5ff")],
+        [["logo", "logo2"], hex("#00e5ff")],
       ]),
   },
   {
@@ -62,7 +62,7 @@ export const TEMPLATES: Template[] = [
         [range(0x3a, 0x45), hex("#3b5bff")],
         [[...WASD, code(0x14), code(0x08), code(0x2b), code(0xe1)], hex("#ffffff")],
         [[...range(0x1e, 0x27), code(0x2d), code(0x2e)], hex("#00ff6a")],
-        [["g:1", "g:2", "g:3", "g:4", "g:5", "g:6", "g:7", "g:8", "g:9", "logo"], hex("#00ff6a")],
+        [["g:1", "g:2", "g:3", "g:4", "g:5", "g:6", "g:7", "g:8", "g:9", "logo", "logo2"], hex("#00ff6a")],
       ]),
   },
   {
@@ -73,7 +73,7 @@ export const TEMPLATES: Template[] = [
       paint(DIM, [
         [[code(0x2c), code(0xe1), code(0xe0), code(0x08), code(0x14)], hex("#ffc800")],
         [[...WASD, ...ARROWS], hex("#00ff6a")],
-        [["logo"], hex("#00ff6a")],
+        [["logo", "logo2"], hex("#00ff6a")],
       ]),
   },
   {
@@ -85,14 +85,14 @@ export const TEMPLATES: Template[] = [
         [[...range(0x1e, 0x26), code(0x08), code(0x14), code(0x17), code(0x38), code(0x3c), code(0x3e)], hex("#8b5a2b")],
         [[code(0x2c), code(0xe1)], hex("#ffffff")],
         [WASD, hex("#3ccf4e")],
-        [["logo"], hex("#3ccf4e")],
+        [["logo", "logo2"], hex("#3ccf4e")],
       ]),
   },
   {
     id: "work",
     label: "tpl.work",
     games: [],
-    keys: () => paint(hex("#c8cce0"), [[["logo"], hex("#7c5cff")]]),
+    keys: () => paint(hex("#c8cce0"), [[["logo", "logo2"], hex("#7c5cff")]]),
   },
   {
     id: "rainbow",
@@ -111,6 +111,7 @@ export const TEMPLATES: Template[] = [
       }
       for (let i = 1; i <= 9; i++) out[`g:${i}`] = hsv(0);
       out.logo = hsv(300);
+      out.logo2 = hsv(300);
       return out;
     },
   },
